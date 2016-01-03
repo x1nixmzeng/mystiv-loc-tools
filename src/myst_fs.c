@@ -60,7 +60,7 @@ void m4b_destroy_fsdir(MystDir** m)
   *m = 0;
 }
 
-void m4v_iterate_fs(MystDir* root, String* root_path, MystFsCallback func)
+void m4v_iterate_fs(MystDir* root, String* root_path, MystFsCallback func, void* userdata)
 {
   int i;
 
@@ -75,7 +75,7 @@ void m4v_iterate_fs(MystDir* root, String* root_path, MystFsCallback func)
     sprintf(next_path->val, "%s%s/", string_get(root_path), string_get(root->name));
 
     for (i = 0; i < root->dir_count; ++i) {
-      m4v_iterate_fs(root->dirs[i], next_path, func);
+      m4v_iterate_fs(root->dirs[i], next_path, func, userdata);
     }
 
     string_destroy(&next_path);
@@ -83,7 +83,7 @@ void m4v_iterate_fs(MystDir* root, String* root_path, MystFsCallback func)
 
   if (func != 0) {
     for (i = 0; i < root->file_count; ++i) {
-      func(root_path, root->files[i]);
+      func(root_path, root->files[i], userdata);
     }
   }
 }

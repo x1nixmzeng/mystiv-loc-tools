@@ -9,9 +9,6 @@
 
 #include "memory.h"
 
-void cb_list_file(String* path, MystFile* file);
-void cb_extract_file(String* path, MystFile* file);
-
 void list_files(const char* fn);
 void extract_files(const char* fn, const char* dst_folder);
 void pack_files(const char* folder, const char* fn);
@@ -78,7 +75,7 @@ int main(int argc, char** argv)
   return 0;
 }
 
-void cb_list_file(String* path, MystFile* file)
+void cb_list_file(String* path, MystFile* file, void* userdata)
 {
   printf("%s%s %u %u\n",
     string_get(path),
@@ -107,7 +104,7 @@ void list_files(const char* fn)
 
       root_dir = string_from_cstring("");
 
-      m4v_iterate_fs(root, root_dir, cb_list_file);
+      m4v_iterate_fs(root, root_dir, cb_list_file, 0);
 
       string_destroy(&root_dir);
       m4b_destroy_fsdir(&root);
@@ -120,9 +117,52 @@ void list_files(const char* fn)
   stream_destroy(&fs);
 }
 
-void cb_extract_file(String* path, MystFile* file)
+void cb_extract_file(String* path, MystFile* file, void* userdata)
 {
-  printf("Extracting %s\n", string_get(file->name));
+  FStream *m4b, *fs;
+  int i;
+  unsigned char* buf;
+
+  m4b = (FStream*)userdata;
+
+  buf = (unsigned char*)mem_alloc(1024);
+  
+  sprintf(buf, "%s%s", string_get(path), string_get(file->name));
+
+  stream_create(&fs);
+  if (stream_make(fs, buf) != 0)
+  {
+    printf("Failed to extract file %s\n", buf);
+
+    mem_free(buf);
+    stream_destroy(&fs);
+    return;
+  }
+  
+  printf("Extracting %s\n", buf);
+
+  stream_seek(m4b, file->offset);
+
+  i = 0;
+  while (i < file->size)
+  {
+    int block;
+
+    block = file->size - i;
+
+    if (block > 1024) {
+      block = 1024;
+    }
+
+    stream_read(m4b, buf, block);
+    stream_write(fs, buf, block);
+
+    i += block;
+  }
+
+  mem_free(buf);
+
+  stream_destroy(&fs);
 }
 
 void extract_files(const char* fn, const char* dst_folder)
@@ -145,7 +185,7 @@ void extract_files(const char* fn, const char* dst_folder)
 
       root_dir = string_from_cstring(dst_folder);
 
-      m4v_iterate_fs(root, root_dir, cb_extract_file);
+      m4v_iterate_fs(root, root_dir, cb_extract_file, fs);
 
       string_destroy(&root_dir);
       m4b_destroy_fsdir(&root);
