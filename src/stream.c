@@ -46,10 +46,28 @@ int stream_open(FStream* fs, const char *szFileName)
   return (fs->handle == 0 ? 1 : 0);
 }
 
-int stream_write(FStream *fs, void *buffer, unsigned length)
+int stream_write(FStream *fs, const void *buffer, unsigned length)
 {
   fwrite(buffer, length, 1, fs->handle);
   return 0;
+}
+
+int stream_write_string(FStream *fs, String *str)
+{
+  if (str->val != 0) {
+    return stream_write(fs, str->val, str->length);
+  }
+
+  return 1;
+}
+
+int stream_write_wstring(FStream *fs, WString *wstr)
+{
+  if (wstr->val != 0) {
+    return stream_write(fs, wstr->val, wstr->length * 2);
+  }
+
+  return 1;
 }
 
 int stream_read(FStream *fs, void *buffer, unsigned int length)
