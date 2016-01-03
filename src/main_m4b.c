@@ -9,6 +9,9 @@
 
 #include "memory.h"
 
+void cb_list_file(String* path, MystFile* file);
+void cb_extract_file(String* path, MystFile* file);
+
 void list_files(const char* fn);
 void extract_files(const char* fn, const char* dst_folder);
 void pack_files(const char* folder, const char* fn);
@@ -75,6 +78,15 @@ int main(int argc, char** argv)
   return 0;
 }
 
+void cb_list_file(String* path, MystFile* file)
+{
+  printf("%s%s %u %u\n",
+    string_get(path),
+    string_get(file->name),
+    file->size,
+    file->offset);
+}
+
 void list_files(const char* fn)
 {
   FStream *fs;
@@ -95,7 +107,7 @@ void list_files(const char* fn)
 
       root_dir = string_from_cstring("");
 
-      m4b_dump_dir(root, root_dir);
+      m4v_iterate_fs(root, root_dir, cb_list_file);
 
       string_destroy(&root_dir);
       m4b_destroy_fsdir(&root);
@@ -108,9 +120,42 @@ void list_files(const char* fn)
   stream_destroy(&fs);
 }
 
+void cb_extract_file(String* path, MystFile* file)
+{
+  printf("Extracting %s\n", string_get(file->name));
+}
+
 void extract_files(const char* fn, const char* dst_folder)
 {
+  FStream *fs;
 
+  printf("Open %s\n", fn);
+  stream_create(&fs);
+
+  if (stream_open(fs, fn) == 1) {
+    printf("Failed to open file\n");
+  }
+  else {
+    MystDir *root;
+
+    root = m4b_read(fs);
+
+    if (root != 0) {
+      String* root_dir;
+
+      root_dir = string_from_cstring(dst_folder);
+
+      m4v_iterate_fs(root, root_dir, cb_extract_file);
+
+      string_destroy(&root_dir);
+      m4b_destroy_fsdir(&root);
+    }
+    else {
+      printf("Failed to read the file system\n");
+    }
+  }
+
+  stream_destroy(&fs);
 }
 
 void pack_files(const char* folder, const char* fn)

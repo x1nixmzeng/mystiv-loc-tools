@@ -28,6 +28,8 @@ void m4b_create_fsdir(MystDir** m);
 void m4b_destroy_fsfile(MystFile** m);
 void m4b_destroy_fsdir(MystDir** m);
 
-void m4b_dump_dir(MystDir* root, String* path);
+typedef void(*MystFsCallback)(String* path, MystFile* file);
+
+void m4v_iterate_fs(MystDir* root, String* root_path, MystFsCallback func);
 
 #endif // MYST_FS_HEADER_H
