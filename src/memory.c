@@ -9,7 +9,9 @@
 int g_mem_alloc = 0;
 int g_mem_freed = 0;
 
-int dbg[3000] = { 0 };
+#define NUM_ADDRS 3000
+int addrs[NUM_ADDRS] = { 0 };
+int addls[NUM_ADDRS] = { 0 };
 #endif
 
 void* mem_alloc(int length)
@@ -20,9 +22,22 @@ void* mem_alloc(int length)
 
 #ifdef DBG_MEMORY
   printf("%08x %u\n", addr, length);
-
-  dbg[g_mem_alloc] = (int)addr;
   ++g_mem_alloc;
+
+  {
+    int i;
+
+    i = 0;
+    while (i < NUM_ADDRS) {
+      if (addrs[i] == 0) {
+        addrs[i] = addr;
+        addls[i] = length;
+        break;
+      }
+      ++i;
+    }
+  }
+
 #endif
 
   return addr;
@@ -31,23 +46,26 @@ void* mem_alloc(int length)
 void mem_free(void* addr)
 {
 #ifdef DBG_MEMORY
-  int i, done;
+  if (addr == 0) {
+    printf("Memory address is already freed\n");
+  }
 
-  ++g_mem_freed;
+  {
+    int i;
 
-  done = 0;
-
-  for( i = 0; i < 3000; ++i ) {
-    if( dbg[i] == (int)addr ) {
-      //dbg[i] = 0;
-      done = 1;
-      break;
+    i = 0;
+    while (i < NUM_ADDRS) {
+      if (addrs[i] == addr) {
+        addrs[i] = 0;
+        addls[i] = 0;
+        break;
+      }
+      ++i;
     }
   }
 
-  if( done != 1 ) {
-    printf("Failed to free address %08x\n", addr);
-  }
+  printf("%08x\n", addr);
+  ++g_mem_freed;
 #endif
 
   free(addr);
@@ -56,22 +74,27 @@ void mem_free(void* addr)
 void mem_dbg()
 {
 #ifdef DBG_MEMORY
-  int leaked, i;
+  printf(" mem_alloc: %u\n", g_mem_alloc);
+  printf("  mem_free: %u\n", g_mem_freed);
 
-  printf("Alloc: %u\n", g_mem_alloc);
-  printf("Freed: %u\n", g_mem_freed);
+  {
+    int i;
 
-  leaked = g_mem_freed - g_mem_alloc;
-
-  printf("LEAKED: %u\n", leaked);
-
-  leaked = 0;
-  for( i = 0; i < 3000; ++i ) {
-    if( dbg[i] != 0 ) {
-      ++leaked;
+    i = 0;
+    while (i < NUM_ADDRS) {
+      if (addrs[i] != 0) {
+        printf("Leak at %08x (%u bytes)\n", addrs[i], addls[i]);
+      }
+      ++i;
     }
   }
 
-  printf("Known leaks: %u\n", leaked);
+  if (g_mem_alloc != g_mem_freed) {
+    if (g_mem_alloc > g_mem_freed) {
+      printf("Memory leaks detected\n");
+    } else {
+      printf("Mismatched calls to mem_free\n");
+    }
+  }
 #endif
 }
