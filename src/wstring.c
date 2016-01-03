@@ -19,3 +19,11 @@ void wstring_destroy(WString** wstr)
   *wstr = 0;
 }
 
+const short *wstring_get(WString* wstr)
+{
+  if (wstr->length > 0) {
+    return wstr->val;
+  }
+
+  return L"";
+}

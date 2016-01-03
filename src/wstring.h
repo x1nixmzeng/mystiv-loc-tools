@@ -7,8 +7,10 @@ typedef struct WString
  int length;
 } WString;
 
-void wstring_create(WString** str);
+void wstring_create(WString** wstr);
 
-void wstring_destroy(WString** str);
+void wstring_destroy(WString** wstr);
+
+const short *wstring_get(WString* wstr);
 
 #endif // WSTRING_HEADER_H
