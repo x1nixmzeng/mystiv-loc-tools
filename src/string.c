@@ -5,19 +5,27 @@
 void string_create(String** str)
 {
   *str = (String *)mem_alloc(sizeof(String));
-  (*str)->val = "";
+  (*str)->val = 0;
   (*str)->length = 0;
 }
 
 void string_destroy(String** str)
 {
-  // no allocations are made with zero-length strings
-
-  if( (*str)->length > 0 ) {
+  if( (*str)->val != 0 ) {
     mem_free((*str)->val);
   }
+
   mem_free(*str);
   *str = 0;
+}
+
+const char *string_get(String* str)
+{
+  if (str->length > 0) {
+    return str->val;
+  }
+
+  return "";
 }
 
 int cstring_length(const char* cstr)

@@ -84,7 +84,7 @@ String* stream_read_cstring(FStream *fs)
 
   str->length = stream_read_int(fs);
 
-  if( str->val > 0 ) {
+  if( str->length > 0 ) {
     str->val = (char *)mem_alloc(str->length +1);
 
     stream_read(fs, str->val, str->length);

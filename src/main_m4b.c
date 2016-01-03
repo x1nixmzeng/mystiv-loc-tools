@@ -91,8 +91,13 @@ void list_files(const char* fn)
     root = m4b_read(fs);
 
     if (root != 0) {
-      m4b_dump_dir(root, 0);
+      String* root_dir;
 
+      root_dir = string_from_cstring("");
+
+      m4b_dump_dir(root, root_dir);
+
+      string_destroy(&root_dir);
       m4b_destroy_fsdir(&root);
     }
     else {

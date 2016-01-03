@@ -36,17 +36,21 @@ void m4b_destroy_fsdir(MystDir** m)
 {
   int i;
 
-  for( i = 0; i < (*m)->dir_count; ++i ) {
-    m4b_destroy_fsdir( &(*m)->dirs[i] );
+  if( (*m)->dirs != 0 ) {
+    for( i = 0; i < (*m)->dir_count; ++i ) {
+      m4b_destroy_fsdir( &(*m)->dirs[i] );
+    }
+
+    mem_free( (*m)->dirs );
   }
 
-  mem_free( (*m)->dirs );
+  if( (*m)->files != 0 ) {
+    for( i = 0; i < (*m)->file_count; ++i ) {
+      m4b_destroy_fsfile( &(*m)->files[i] );
+    }
 
-  for( i = 0; i < (*m)->file_count; ++i ) {
-    m4b_destroy_fsfile( &(*m)->files[i] );
+    mem_free( (*m)->files );
   }
-
-  mem_free( (*m)->files );
 
   if( (*m)->name != 0 ) {
     string_destroy( &(*m)->name );
@@ -65,17 +69,10 @@ void m4b_dump_dir(MystDir* root, String* path)
 
     string_create(&next_path);
 
-    if (path) {
-      next_path->length = path->length + root->name->length + 1;
-      next_path->val = (char*)mem_alloc(next_path->length + 1);
+    next_path->length = path->length + root->name->length + 1;
+    next_path->val = (char*)mem_alloc(next_path->length + 1);
 
-      sprintf(next_path->val, "%s/%s", path->val, root->name->val);
-    } else {
-      next_path->length = root->name->length;
-      next_path->val = (char*)mem_alloc(next_path->length + 1);
-
-      sprintf(next_path->val, "%s", root->name->val);
-    }
+    sprintf(next_path->val, "%s%s/", string_get(path), string_get(root->name));
 
     for (i = 0; i < root->dir_count; ++i) {
       m4b_dump_dir(root->dirs[i], next_path);
@@ -85,9 +82,9 @@ void m4b_dump_dir(MystDir* root, String* path)
   }
 
   for( i = 0; i < root->file_count; ++i ) {
-    printf("%s/%s %u %u\n",
-      path->val,
-      root->files[i]->name->val,
+    printf("%s%s %u %u\n",
+      string_get(path),
+      string_get(root->files[i]->name),
       root->files[i]->size,
       root->files[i]->offset);
   }

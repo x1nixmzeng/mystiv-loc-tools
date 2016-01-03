@@ -144,7 +144,7 @@ int xmldoc_next(XmlDoc* xd)
     }
 
     str = range_make_string(tag);
-    printf("Node name is '%s'\n", str->val);
+    printf("Node name is '%s'\n", string_get(str));
     string_destroy(&str);
 
     // parse next node until the end
@@ -172,7 +172,7 @@ int xmldoc_next(XmlDoc* xd)
 
         str_end = range_make_string(tag_end);
 
-        printf("Next node is '%s'\n", str_end->val);
+        printf("Next node is '%s'\n", string_get(str_end));
 
         if( range_equal( tag, tag_end ) == 1 ) {
           printf("Matching tags!");

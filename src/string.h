@@ -11,6 +11,8 @@ void string_create(String** str);
 
 void string_destroy(String** str);
 
+const char *string_get(String* str);
+
 String *string_from_cstring(const char* cstr);
 
 #endif // STRING_HEADER_H
