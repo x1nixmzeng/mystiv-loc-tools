@@ -8,6 +8,7 @@
 #include "myst_fs.h"
 
 #include "memory.h"
+#include "platform.h"
 
 void list_files(const char* fn);
 void extract_files(const char* fn, const char* dst_folder);
@@ -128,6 +129,8 @@ void cb_extract_file(String* path, MystFile* file, void* userdata)
   buf = (unsigned char*)mem_alloc(1024);
   
   sprintf(buf, "%s%s", string_get(path), string_get(file->name));
+
+  platform_make_full_path(path);
 
   stream_create(&fs);
   if (stream_make(fs, buf) != 0)
