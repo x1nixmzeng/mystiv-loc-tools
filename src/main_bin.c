@@ -8,6 +8,20 @@
 #include "string.h"
 #include "wstring.h"
 
+const unsigned short xml_hdr[] = L"<?xml version=\"1.0\"?>\r\n";
+
+const unsigned short trans_pre[] = L"<trans name=\"";
+const unsigned short trans_post[] = L"\">";
+const unsigned short trans_end[] = L"</trans>\r\n";
+
+const unsigned short node_open[] = L"<";
+const unsigned short node_closing[] = L"</";
+const unsigned short node_close[] = L">\r\n";
+const unsigned short group_open[] = L"<group>\r\n";
+const unsigned short group_open_pre[] = L"<group name=\"";
+const unsigned short group_open_post[] = L"\">\r\n";
+const unsigned short group_close[] = L"</group>\r\n";
+
 String* convert_wstring(WString* src)
 {
   String* str;
@@ -55,9 +69,6 @@ WString* convert_string(String* src)
 void write_translation(FStream* xml, Translation* t)
 {
   WString* conv;
-  const unsigned short trans_pre[] = L"<trans name=\"";
-  const unsigned short trans_post[] = L"\">";
-  const unsigned short trans_end[] = L"</trans>\r\n";
   
   stream_write(xml, trans_pre, sizeof(trans_pre) -2);
   conv = convert_string(t->key);
@@ -82,7 +93,6 @@ FStream* create_xml_stream(const char* fn)
 
   {
     unsigned short BOM;
-    const unsigned short xml_hdr[] = L"<?xml version=\"1.0\"?>\r\n";
 
     BOM = 0xfeff;
 
@@ -113,64 +123,59 @@ int main(int argc, char** argv)
        printf("Failed to open file\n");
     } else {
       Locale *loc;
-      FStream* out_xml;
-      int i, j;
-      WString* conv;
-
-      const unsigned short node_open[] = L"<";
-      const unsigned short node_closing[] = L"</";
-      const unsigned short node_close[] = L">\r\n";
-      const unsigned short group_open[] = L"<group>\r\n";
-      const unsigned short group_open_pre[] = L"<group name=\"";
-      const unsigned short group_open_post[] = L"\">\r\n";
-      const unsigned short group_close[] = L"</group>\r\n";
-
-#define WRITE(xml) stream_write(out_xml, xml, sizeof(xml) -2);
 
       loc = bin_read(fs);
       
-      out_xml = create_xml_stream(argv[2]);
+      if (loc->name != 0) {
+        FStream* out_xml;
+        int i, j;
+        WString* conv;
 
-      if (out_xml->handle != 0) {
+#define WRITE(xml) stream_write(out_xml, xml, sizeof(xml) -2);
 
-        WRITE(node_open);
-        conv = convert_string(loc->name);
-        stream_write_wstring(out_xml, conv);
-        wstring_destroy(&conv);
-        WRITE(node_close);
+        out_xml = create_xml_stream(argv[2]);
 
-        if (loc->trans_count > 0) {
-          WRITE(group_open);
+        if (out_xml->handle != 0) {
 
-          for (i = 0; i < loc->trans_count; ++i) {
-            write_translation(out_xml, loc->trans[i]);
-          }
-
-          WRITE(group_close);
-        }
-
-        for (i = 0; i < loc->group_count; ++i) {
-          WRITE(group_open_pre);
-          conv = convert_string(loc->groups[i]->name);
+          WRITE(node_open);
+          conv = convert_string(loc->name);
           stream_write_wstring(out_xml, conv);
           wstring_destroy(&conv);
-          WRITE(group_open_post);
+          WRITE(node_close);
 
-          for (j = 0; j < loc->groups[i]->trans_count; ++j) {
-            write_translation(out_xml, loc->groups[i]->trans[j]);
+          if (loc->trans_count > 0) {
+            WRITE(group_open);
+
+            for (i = 0; i < loc->trans_count; ++i) {
+              write_translation(out_xml, loc->trans[i]);
+            }
+
+            WRITE(group_close);
           }
 
-          WRITE(group_close);
+          for (i = 0; i < loc->group_count; ++i) {
+            WRITE(group_open_pre);
+            conv = convert_string(loc->groups[i]->name);
+            stream_write_wstring(out_xml, conv);
+            wstring_destroy(&conv);
+            WRITE(group_open_post);
+
+            for (j = 0; j < loc->groups[i]->trans_count; ++j) {
+              write_translation(out_xml, loc->groups[i]->trans[j]);
+            }
+
+            WRITE(group_close);
+          }
+
+          WRITE(node_closing);
+          conv = convert_string(loc->name);
+          stream_write_wstring(out_xml, conv);
+          wstring_destroy(&conv);
+          WRITE(node_close);
         }
 
-        WRITE(node_closing);
-        conv = convert_string(loc->name);
-        stream_write_wstring(out_xml, conv);
-        wstring_destroy(&conv);
-        WRITE(node_close);
+        stream_destroy(&out_xml);
       }
-
-      stream_destroy(&out_xml);
 
       locale_destroy(&loc);
     }

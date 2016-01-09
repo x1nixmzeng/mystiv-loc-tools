@@ -59,6 +59,8 @@ void locale_create(Locale** l)
   (*l)->name = 0;
   (*l)->trans = 0;
   (*l)->trans_count = 0;
+  (*l)->groups = 0;
+  (*l)->group_count = 0;
 }
 
 void locale_destroy(Locale** l)
@@ -204,6 +206,7 @@ void bin_read_main(FStream *fs, Locale* loc)
 Locale* bin_read(FStream *fs)
 {
   Locale* loc;
+  int bin_type;
   int unknown_0;
 
   locale_create(&loc);
@@ -212,8 +215,12 @@ Locale* bin_read(FStream *fs)
     return loc;
   }
  
-  // offset? static number
-  stream_read_int(fs);
+  bin_type = stream_read_int(fs);
+
+  if( bin_type != 25) {
+    printf("This BIN file is not a text resource\n");
+    return loc;
+  }
 
   unknown_0 = stream_read_int(fs);
 
