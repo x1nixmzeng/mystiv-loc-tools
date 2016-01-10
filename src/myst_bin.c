@@ -1,5 +1,7 @@
 #include "myst_bin.h"
 #include "memory.h"
+#include "xml.h"
+#include "wtextrange.h"
 
 void translation_create(Translation** t)
 {
@@ -217,7 +219,11 @@ Locale* bin_read(FStream *fs)
  
   bin_type = stream_read_int(fs);
 
-  if( bin_type != 25) {
+  // Types
+  // Subtitle == 36 (subtitle_?.bin)
+  // Text = 37 (t_?.bin)
+
+  if( bin_type != 37) {
     printf("This BIN file is not a text resource\n");
     return loc;
   }
@@ -229,5 +235,93 @@ Locale* bin_read(FStream *fs)
 
   bin_read_main(fs, loc);
 
+  return loc;
+}
+
+WRange* xml_get_element_open(Xml* xml)
+{
+  WRange* range;
+  wrange_create(&range);
+
+
+
+  return range;
+}
+
+Locale* loc_from_xml(WRange* src)
+{
+  Xml* xml;
+  XmlHint hint;
+
+  xml_create(&xml);
+
+  wrange_copy(src, xml->range);
+  xml->cursor = xml->range->begin;
+
+  hint = xml_parse(xml);
+
+  if (hint == kXmlHintStartDeclaration) {
+      
+    while (!( hint == kXmlHintEnded || hint == kXmlHintEndDeclaration)) {
+      hint = xml_parse(xml);
+    }
+  }
+
+  if (hint != kXmlHintEnded )
+  if (xml_parse(xml) == kXmlHintStartElementOpen)
+  {
+    WRange* root_name;
+    WString* name;
+
+    wrange_create(&root_name);
+
+    root_name->begin = xml->cursor;
+    root_name->end = root_name->begin;
+
+    while (!(hint == kXmlHintEnded || hint == kXmlHintEndElementOpen)) {
+      hint = xml_parse(xml);
+    }
+
+    root_name->end = xml->cursor -1;
+   
+    name = wrange_make_string(root_name);
+
+    printf("Got name %ls\n", wstring_get(name));
+
+    wstring_destroy(&name);
+    wrange_destroy(&root_name);
+  }
+
+  xml_destroy(&xml);
+
+  return 0;
+}
+
+Locale* xml_read(FStream *fs)
+{
+  Locale* loc;
+  void* buffer;
+  
+  stream_seek(fs, 0);
+  buffer = mem_alloc(fs->length);
+
+  stream_read(fs, buffer, fs->length);
+
+  // check utf-16 export
+  if (*(unsigned short*)buffer == 0xFEFF) {
+    WRange *range;
+
+    wrange_create(&range);
+
+    range->begin = (const char *)buffer + 2;
+    range->end = (const char *)range->begin + fs->length;
+
+    loc = loc_from_xml(range);
+
+    wrange_destroy(&range);
+  }
+
+  mem_free(buffer);
+  
   return loc;
 }
