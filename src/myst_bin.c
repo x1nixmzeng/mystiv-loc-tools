@@ -248,6 +248,45 @@ WRange* xml_get_element_open(Xml* xml)
   return range;
 }
 
+XmlHint xml_skip_declaration(Xml *xml)
+{
+  XmlHint hint;
+
+  hint = xml_parse(xml);
+
+  if (hint == kXmlHintStartDeclaration) {
+    while (!(hint == kXmlHintEnded || hint == kXmlHintEndDeclaration)) {
+      hint = xml_parse(xml);
+    }
+  }
+
+  return hint;
+}
+
+XmlHint xml_read_root_node(Xml *xml, WRange** name_range)
+{
+  XmlHint hint;
+
+  hint = xml->context;
+
+  if (hint == kXmlHintEndDeclaration) {
+    hint = xml_parse(xml);
+
+    if (hint == kXmlHintStartElementOpen) {
+      (*name_range)->begin = xml->cursor;
+      (*name_range)->end = (*name_range)->begin;
+
+      while (!(hint == kXmlHintEnded || hint == kXmlHintEndElementOpen)) {
+        hint = xml_parse(xml);
+      }
+    }
+  }
+
+  (*name_range)->end = xml->cursor - 1;
+
+  return hint;
+}
+
 Locale* loc_from_xml(WRange* src)
 {
   Xml* xml;
@@ -258,37 +297,24 @@ Locale* loc_from_xml(WRange* src)
   wrange_copy(src, xml->range);
   xml->cursor = xml->range->begin;
 
-  hint = xml_parse(xml);
+  hint = xml_skip_declaration(xml);
 
-  if (hint == kXmlHintStartDeclaration) {
-      
-    while (!( hint == kXmlHintEnded || hint == kXmlHintEndDeclaration)) {
-      hint = xml_parse(xml);
-    }
-  }
-
-  if (hint != kXmlHintEnded )
-  if (xml_parse(xml) == kXmlHintStartElementOpen)
-  {
+  if (hint != kXmlHintEnded) {
     WRange* root_name;
-    WString* name;
-
     wrange_create(&root_name);
 
-    root_name->begin = xml->cursor;
-    root_name->end = root_name->begin;
+    hint = xml_read_root_node(xml, &root_name);
 
-    while (!(hint == kXmlHintEnded || hint == kXmlHintEndElementOpen)) {
-      hint = xml_parse(xml);
+    if (hint != kXmlHintEnded) {
+      WString *root;
+
+      root = wrange_make_string(root_name);
+
+      printf("Got root %ls\n", wstring_get(root));
+
+      wstring_destroy(&root);
     }
 
-    root_name->end = xml->cursor -1;
-   
-    name = wrange_make_string(root_name);
-
-    printf("Got name %ls\n", wstring_get(name));
-
-    wstring_destroy(&name);
     wrange_destroy(&root_name);
   }
 
