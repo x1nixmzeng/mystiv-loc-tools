@@ -1,213 +1,295 @@
 #include "xml.h"
 #include "memory.h"
 
-void xmldoc_create(XmlDoc** xd)
+void xml_create(Xml** xml)
 {
-  *xd = (XmlDoc* )mem_alloc(sizeof(XmlDoc));
-
-  (*xd)->data = 0;
-  (*xd)->cursor = 0;
-
-  range_create( &(*xd)->node );
+  *xml = (Xml*)mem_alloc(sizeof(Xml));
+  
+  (*xml)->range = 0;
+  (*xml)->cursor = 0;
+  (*xml)->context = kXmlHintUnknown;
+  
+  wrange_create(&(*xml)->range);
 }
 
-void xmldoc_destroy(XmlDoc** xd)
+void xml_destroy(Xml** xml)
 {
-  if( (*xd)->data != 0 ) {
-    range_destroy(&(*xd)->data);
-  }
+  wrange_destroy(&(*xml)->range);
 
-  range_destroy(&(*xd)->node);
-
-  mem_free(*xd);
-  *xd = 0;
+  mem_free(*xml);
 }
 
-XmlDoc* xmldoc_init(Range* r)
+void xml_skip_whitespace(Xml* xml)
 {
-  XmlDoc* xml;
-
-  xmldoc_create(&xml);
-
-  range_create(&(xml->data));
-  range_copy(r, xml->data);
-
-  range_copy(r, xml->node);
-  xml->cursor = xml->data->begin;
-
-  return xml;
-}
-
-const char* xmldoc_eat_whitespace(XmlDoc* xd)
-{
-  const char* str;
-
-  str = xd->cursor;
-
-  while( str < xd->data->end )
-  {
-    switch( *str )
-    {
+  while (xml->cursor < xml->range->end) {
+    switch (*xml->cursor) {
+      case 0:
       case ' ':
+      case '\r':
       case '\t':
       case '\n':
-        str++;
+        ++xml->cursor;
         break;
-      case 0:
-        return str;
       default:
-        return str;
+        return;
     }
   }
-
-  return str;
 }
 
-void eat_text(Range* r)
+int xml_char(const short c)
 {
-  const char* str;
+  if ((c >= 'a' && c <= 'z')
+    || (c >= 'A' && c <= 'Z')
+    || (c >= '0' && c <= '9')
+    || c == '_' || c == '.' ) {
+    return 0;
+  } else {
+    return 1;
+  }
+}
 
-  str = r->begin;
-
-  while( str < r->end )
+XmlHint xml_parse(Xml* xml)
+{
+  switch (xml->context)
   {
-    if( ( *str >= 'a' && *str <= 'z' )
-     || ( *str >= 'A' && *str <= 'Z' )
-     || ( *str >= '0' && *str <= '9' )
-     || ( *str == '_' ) ) {
-        str++;
-    } else {
-      break;
-    }
-  }
-
-  r->begin = str;
-}
-
-Range* xmldoc_getnode(Range* r)
-{
-  Range* node;
-  const char* p;
-
-  range_create(&node);
-  range_copy(r, node);
-
-  p = node->begin;
-
-  while( p < node->end ) {
-    if( *p == '<' ) {
-      p++;
-
-//      if( *p == '/' ) {
-//        p++;
-//      }
-
-      node->begin = p;
-
-      while( p < node->end ) {
-        if( *p == '>' ) {
-          node->end = p;
-          return node;
-        } else {
-          p++;
-        }
-      }
-
-    } else {
-      p++;
-    }
-  }
-
-  range_destroy(&node);
-  return 0;
-}
-
-int xmldoc_next(XmlDoc* xd)
-{
-  const char* pos;
-  Range* tag;
-
-  pos = xmldoc_eat_whitespace(xd);
-
-   
-
-  tag = xmldoc_getnode(xd->node);
-
-  if( tag != 0 ) {
-    String* str;
-    int end;
-
-    if( *tag->begin == '/' ) {
-      printf("This is the END node. Exiting\n");
-      range_destroy(&tag);
-      return 0;
-    }
-
-    str = range_make_string(tag);
-    printf("Node name is '%s'\n", string_get(str));
-    string_destroy(&str);
-
-    // parse next node until the end
-
+    case kXmlHintUnknown:
+    case kXmlHintEndDeclaration:
+    case kXmlHintEndElementClose:
+    case kXmlHintEndInnerText:
     {
-      Range* cursor;
-      Range* tag_end;
+      xml_skip_whitespace(xml);
 
-      range_create(&cursor);
+      if (*xml->cursor == '<') {
+        xml->cursor++;
 
-      range_copy(xd->node, cursor);
-      cursor->begin = tag->end +1;
-
-      tag_end = xmldoc_getnode(cursor);
-
-      if( tag_end != 0 ) {
-        String* str_end;
-
-        // ah. this is the exiting node. horrible!
-
-        if( *tag_end->begin == '/' ) {
-          tag_end->begin++;
+        switch (*xml->cursor) {
+        case '/':
+          ++xml->cursor;
+          xml->context = kXmlHintStartElementClose;
+          break;
+        case '?':
+          ++xml->cursor;
+          xml->context = kXmlHintStartDeclaration;
+          break;
+        default:
+          xml->context = kXmlHintStartElementOpen;
         }
-
-
-        str_end = range_make_string(tag_end);
-
-        printf("Next node is '%s'\n", string_get(str_end));
-
-        if( range_equal( tag, tag_end ) == 1 ) {
-          printf("Matching tags!");
-        }
-
-        string_destroy(&str_end);
-        range_destroy(&tag_end);
+      } else {
+        xml->context = kXmlHintEnded;
       }
-
-      range_destroy(&cursor);     
     }
+    break;
 
+    case kXmlHintEndElementOpen:
+    {
+      xml_skip_whitespace(xml);
 
-    range_destroy(&tag);
+      if(*xml->cursor == '<') {
+        xml->cursor++;
+        if (*xml->cursor == '/') {
+          ++xml->cursor;
+          xml->context = kXmlHintStartElementClose;
+        } else {
+          xml->context = kXmlHintStartElementOpen;
+        }
+      } else {
+        xml->context = kXmlHintStartInnerText;
+      }
+    }
+    break;
+    
+    case kXmlHintStartInnerText:
+    case kXmlHintInnerText:
+    {
+      if (*xml->cursor == '<' ) {
+        xml->context = kXmlHintEndInnerText;
+      } else {
+        ++xml->cursor;
+
+        if (*xml->cursor == '<') {
+          xml->context = kXmlHintEndInnerText;
+        } else {
+          xml->context = kXmlHintInnerText;
+        }
+      }
+    }
+    break;
+
+    case kXmlHintStartDeclaration:
+    case kXmlHintStartElementOpen:
+    case kXmlHintStartElementClose:
+    {
+      ++xml->cursor;
+      unsigned short chr = *xml->cursor;
+  
+      if (xml_char(chr) == 0) {
+        switch (xml->context) {
+        case kXmlHintStartElementOpen:
+          xml->context = kXmlHintElementOpen;
+          break;
+        case kXmlHintStartElementClose:
+          xml->context = kXmlHintElementClose;
+          break;
+        case kXmlHintStartDeclaration:
+          xml->context = kXmlHintDeclaration;
+          break;
+        default:
+          xml->context = kXmlHintEnded;
+        }
+      } else {
+        xml->context = kXmlHintEnded;
+      }
+    }
+    break;
+
+    case kXmlHintDeclaration:
+    {
+      ++xml->cursor;
+      unsigned short chr = *xml->cursor;
+  
+      if (xml_char(chr) == 0) {
+        //xml->context = kXmlHintDeclaration;
+      }
+      else if (chr == ' ') {
+        ++xml->cursor;
+        xml->context = kXmlHintStartAttributeName;
+      } else if (chr == '?') {
+        ++xml->cursor;
+        if (*xml->cursor == '>') {
+          ++xml->cursor;
+          xml->context = kXmlHintEndDeclaration;
+        } else {
+          xml->context = kXmlHintEnded;
+        }
+      }
+    }
+    break;
+
+    case kXmlHintElementOpen:
+    {
+      ++xml->cursor;
+      unsigned short chr = *xml->cursor;
+  
+      if (xml_char(chr) == 0) {
+        //xml->context = kXmlHintElementOpen;
+      }
+      else if (chr == ' ') {
+        ++xml->cursor;
+        xml->context = kXmlHintStartAttributeName;
+      } else if (chr == '>') {
+        ++xml->cursor;
+        xml->context = kXmlHintEndElementOpen;
+      }
+    }
+    break;
+
+    case kXmlHintElementClose:
+    {
+      ++xml->cursor;
+      unsigned short chr = *xml->cursor;
+  
+      if (xml_char(chr) == 0) {
+        //xml->context = kXmlHintElementClose;
+      } else if (chr == '>') {
+        ++xml->cursor;
+        xml->context = kXmlHintEndElementClose;
+
+        if (xml->cursor == xml->range->end) {
+          xml->context = kXmlHintEnded;
+        }
+      }
+    }
+    break;
+
+    case kXmlHintAttributeName:
+    case kXmlHintStartAttributeName:
+    {
+      ++xml->cursor;
+      unsigned short chr = *xml->cursor;
+
+      if (xml_char(chr) == 0) {
+        xml->context = kXmlHintAttributeName;
+      } else if (chr == '=') {
+        ++xml->cursor;
+        xml->context = kXmlHintEndAttributeName;
+      } else {
+        xml->context = kXmlHintEnded;
+      }
+    }
+    break;
+
+    case kXmlHintEndAttributeName:
+    {
+      if (*xml->cursor == '"') {
+        ++xml->cursor;
+        xml->context = kXmlHintStartAttributeValue;
+      } else if (*xml->cursor == '>') {
+        ++xml->cursor;
+        xml->context = kXmlHintEndElementOpen;
+      }
+    }
+    break;
+
+    case kXmlHintStartAttributeValue:
+    {
+      ++xml->cursor;
+      unsigned short chr = *xml->cursor;
+
+      if (xml_char(chr) == 0) {
+        xml->context = kXmlHintAttributeValue;
+      } else if (chr == '"') {
+        xml->context = kXmlHintEndAttributeValue;
+      } else if (chr == '>') {
+        xml->context = kXmlHintEnded;
+      }
+    }
+    break;
+
+    case kXmlHintAttributeValue:
+    {
+      ++xml->cursor;
+      unsigned short chr = *xml->cursor;
+
+      if (xml_char(chr) == 0) {
+        xml->context = kXmlHintAttributeValue;
+      } else if (chr == '"') {
+        xml->context = kXmlHintEndAttributeValue;
+      } else if (chr == '>') {
+        xml->context = kXmlHintEnded;
+      }
+    }
+    break;
+
+    case kXmlHintEndAttributeValue:
+    {
+      ++xml->cursor;
+
+      switch (*xml->cursor) {
+      case '>':
+        ++xml->cursor;
+        xml->context = kXmlHintEndElementOpen;
+        break;
+      case '?':
+        ++xml->cursor;
+        if (*xml->cursor == '>') {
+          ++xml->cursor;
+          xml->context = kXmlHintEndDeclaration;
+        } else {
+          xml->context = kXmlHintEnded;
+        }
+        break;
+      default:
+        xml->context = kXmlHintEnded;
+      }
+    }
+    break;
+
+    default:
+    {
+      xml->context = kXmlHintEnded;
+    }
+    break;
   }
 
-  return 0;
-}
-
-Range* xmldoc_getnodename(XmlDoc* xd)
-{
-  Range* r;
-  
-  range_create(&r);
-  
-  // todo: from xd->node
-  
-  return r;
-}
-
-XmlDoc* xmldoc_getnodeinner(XmlDoc* xd)
-{
-  XmlDoc* xml;
-
-  xml = xmldoc_init(xd->node);
-
-  return xml;
+  return xml->context;
 }
