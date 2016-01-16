@@ -3,9 +3,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-//#define DBG_MEMORY
+#define DBG_MEMORY 0
 
-#ifdef DBG_MEMORY
+#if DBG_MEMORY
 int g_mem_alloc = 0;
 int g_mem_freed = 0;
 
@@ -20,7 +20,7 @@ void* mem_alloc(int length)
 
   addr = (void* )malloc(length);
 
-#ifdef DBG_MEMORY
+#if DBG_MEMORY
   printf("%08x %u\n", addr, length);
   ++g_mem_alloc;
 
@@ -43,9 +43,14 @@ void* mem_alloc(int length)
   return addr;
 }
 
+void* mem_realloc(void* addr, int new_length)
+{
+  return realloc(addr, new_length);
+}
+
 void mem_free(void* addr)
 {
-#ifdef DBG_MEMORY
+#if DBG_MEMORY
   if (addr == 0) {
     printf("Memory address is already freed\n");
   }
@@ -73,7 +78,7 @@ void mem_free(void* addr)
 
 void mem_dbg()
 {
-#ifdef DBG_MEMORY
+#if DBG_MEMORY
   printf(" mem_alloc: %u\n", g_mem_alloc);
   printf("  mem_free: %u\n", g_mem_freed);
 
