@@ -3,6 +3,8 @@
 #include "memory.h"
 #include "wtextrange.h"
 
+const char bin_magic[] = "ubi/b0-l";
+
 void translation_create(Translation** t)
 {
   *t = (Translation* )mem_alloc(sizeof(Translation));
@@ -146,15 +148,14 @@ int bin_check_header(FStream *fs)
 {
   char magic[9];
   int len, i;
-  const char expected[] = "ubi/b0-l";
 
-  len = sizeof(expected);
+  len = sizeof(bin_magic);
 
   stream_read(fs, &magic, len -1);
   magic[8] = 0;
 
   for( i = 0; i < len; ++i ) {
-    if( magic[i] != expected[i] ) {
+    if (magic[i] != bin_magic[i]) {
       printf("Bad magic for locale file\n");
       return 1;
     }
@@ -209,7 +210,7 @@ Group* bin_read_group(FStream *fs)
   group->name = stream_read_cstring(fs);
 
   group->trans_count = stream_read_int(fs);
-  unknown = stream_read_int(fs);
+  unknown = stream_read_int(fs); // 0 ?
 
   if( group->trans_count > 0 ) {
     group->trans = (Translation** )mem_alloc(sizeof(Translation* ) * group->trans_count);
@@ -285,3 +286,94 @@ Locale* myst_read_bin(FStream *fs)
   return loc;
 }
 
+void bin_write_header(FStream* fs)
+{
+  int type, unknown;
+  
+  type = 37; // text
+  unknown = 1;
+
+  stream_write(fs, bin_magic, sizeof(bin_magic)-1);
+  stream_write(fs, &type, sizeof(int));
+  stream_write(fs, &unknown, sizeof(int));
+}
+
+void bin_write_name(FStream* fs, Locale *l)
+{
+  String* name;
+
+  name = string_from_cstring(l->name->val);
+  scramble_str(name);
+
+  stream_write(fs, &name->length, sizeof(name->length));
+  stream_write_string(fs, name);
+
+  string_destroy(&name);
+}
+
+void bin_write_translation(FStream *fs, Translation *tr)
+{
+  // key
+  stream_write(fs, &tr->key->length, sizeof(int));
+  stream_write_string(fs, tr->key);
+  
+  // translation
+  stream_write(fs, &tr->trans->length, sizeof(int));
+  stream_write_wstring(fs, tr->trans);
+}
+
+void bin_write_group(FStream *fs, Group *g)
+{
+  int i, unknown;
+
+  // name
+  stream_write(fs, &g->name->length, sizeof(int));
+  stream_write_string(fs, g->name);
+
+  // translation count
+  stream_write(fs, &g->trans_count, sizeof(int));
+
+  unknown = 0;
+  stream_write(fs, &unknown, sizeof(int));
+
+  for (i = 0; i < g->trans_count; ++i)
+  {
+    bin_write_translation(fs, g->trans[i]);
+  }
+}
+
+void bin_write_main(FStream *fs, Locale *l)
+{
+  int i, unknown;
+
+  unknown = 1;
+
+  stream_write(fs, &unknown, sizeof(int));
+
+  stream_write(fs, &l->trans_count, sizeof(int));
+  stream_write(fs, &l->group_count, sizeof(int));
+  
+  if (l->trans_count > 0)
+  {
+    for (i = 0; i < l->trans_count; ++i)
+    {
+      bin_write_translation(fs, l->trans[i]);
+    }
+  }
+
+  if (l->group_count > 0)
+  {
+    for (i = 0; i < l->group_count; ++i)
+    {
+      bin_write_group(fs, l->groups[i]);
+    }
+  }
+}
+
+void myst_write_bin(FStream* out_bin, Locale* loc)
+{
+  bin_write_header(out_bin);
+  bin_write_name(out_bin, loc);
+
+  bin_write_main(out_bin, loc);
+}

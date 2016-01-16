@@ -80,7 +80,7 @@ void convert_bin(FStream* fs, const char* out_fn)
 {
   Locale *myst_loc;
 
-  myst_loc = bin_read(fs);
+  myst_loc = myst_read_bin(fs);
   
   if (myst_loc != 0){
     FStream* out;
@@ -88,7 +88,7 @@ void convert_bin(FStream* fs, const char* out_fn)
     out = create_xml_stream(out_fn);
 
     if (out->handle != 0) {
-      myst_write_xml_locale(out, myst_loc);
+      myst_write_xml(out, myst_loc);
     }
     
     stream_destroy(&out);
@@ -100,11 +100,19 @@ void convert_xml(FStream* fs, const char* out_fn)
 {
   Locale *myst_loc;
 
-  myst_loc = xml_read(fs);
+  myst_loc = myst_read_xml(fs);
 
-  // todo: conversion
+  if ( myst_loc != 0) {
+    FStream* out;
 
-  if (myst_loc != 0){
+    stream_create(&out);
+    stream_make(out, out_fn);
+
+    if (out->handle != 0) {
+      myst_write_bin(out, myst_loc);
+    }
+
+    stream_destroy(&out);
     locale_destroy(&myst_loc);
   }
 }
