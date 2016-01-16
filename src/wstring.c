@@ -27,3 +27,38 @@ const short *wstring_get(WString* wstr)
 
   return L"";
 }
+
+int cwstring_length(const short* cwstr)
+{
+  const short* pStr;
+
+  pStr = cwstr;
+
+  while (*pStr) {
+    ++pStr;
+  }
+
+  return pStr - cwstr;
+}
+
+WString *wstring_from_cwstring(const short* cwstr)
+{
+  WString* wstr;
+  int i;
+
+  wstring_create(&wstr);
+
+  wstr->length = cwstring_length(cwstr);
+
+  if (wstr->length > 0) {
+    wstr->val = (char *)mem_alloc((wstr->length + 1) * sizeof(short));
+
+    for (i = 0; i < wstr->length; ++i){
+      wstr->val[i] = cwstr[i];
+    }
+
+    wstr->val[wstr->length] = 0;
+  }
+
+  return wstr;
+}

@@ -37,5 +37,6 @@ void locale_create(Locale** l);
 void locale_destroy(Locale** l);
 
 Locale* bin_read(FStream *fs);
+Locale* xml_read(FStream *fs);
 
 #endif // MYST_BIN_HEADER_H

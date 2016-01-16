@@ -250,12 +250,115 @@ WRange* xml_get_element_open(Xml* xml)
 
 XmlHint xml_skip_declaration(Xml *xml)
 {
+  int loop;
+
+  loop = 1;
+  while (loop != 0) {
+    switch (xml_parse(xml)) {
+    case kXmlHintEnded:
+    case kXmlHintEndDeclaration:
+      loop = 0;
+      break;
+    default:
+      break;
+    }
+  }
+  
+  return xml->context;
+}
+
+XmlHint myst_xml_read_node(Xml *xml, WRange** ele_name, WRange** attrib_val)
+{
   XmlHint hint;
 
-  hint = xml_parse(xml);
+  hint = xml->context;
 
-  if (hint == kXmlHintStartDeclaration) {
-    while (!(hint == kXmlHintEnded || hint == kXmlHintEndDeclaration)) {
+  if (xml->context != kXmlHintStartElementOpen) {
+    hint = xml_parse(xml);
+  }
+  
+  if (hint == kXmlHintStartElementOpen) {
+    int loop;
+
+    if (ele_name != 0) {
+      (*ele_name)->begin = xml->cursor;
+      (*ele_name)->end = (*ele_name)->begin;
+    }
+    
+    loop = 1;
+
+    while (loop) {
+      switch (hint) {
+      case kXmlHintEnded:
+        loop = 0;
+        break;
+      case kXmlHintEndElementOpen:
+        // bug: element name should be returned separately from elementopen/close
+        if (ele_name != 0){
+          if ((*ele_name)->end == (*ele_name)->begin) {
+             (*ele_name)->end = xml->cursor - 1;
+          }
+        }
+        loop = 0;
+        break;
+      case kXmlHintStartAttributeName:
+        if (ele_name != 0){
+          (*ele_name)->end = xml->cursor - 1;
+        }
+        break;
+      case kXmlHintStartAttributeValue:
+        if (attrib_val != 0){
+          (*attrib_val)->begin = xml->cursor;
+          (*attrib_val)->end = (*attrib_val)->begin;
+        }
+        break;
+      case kXmlHintEndAttributeValue:
+        if (attrib_val != 0) {
+          (*attrib_val)->end = xml->cursor;
+        }
+        break;
+      }
+
+      hint = xml_parse(xml);
+    }
+  }
+  
+  return hint;
+}
+
+XmlHint myst_xml_close_node(Xml *xml, WRange** ele_name)
+{
+  XmlHint hint;
+
+  hint = xml->context;
+
+  if (xml->context != kXmlHintStartElementClose) {
+    hint = xml_parse(xml);
+  }
+
+  if (hint == kXmlHintStartElementClose) {
+    int loop;
+
+    if (ele_name != 0) {
+      (*ele_name)->begin = xml->cursor;
+      (*ele_name)->end = (*ele_name)->begin;
+    }
+
+    loop = 1;
+
+    while (loop) {
+      switch (hint) {
+      case kXmlHintEnded:
+        loop = 0;
+        break;
+      case kXmlHintEndElementClose:
+        if (ele_name != 0) {
+          (*ele_name)->end = xml->cursor -1;
+        }
+        loop = 0;
+        break;
+      }
+    
       hint = xml_parse(xml);
     }
   }
@@ -263,27 +366,51 @@ XmlHint xml_skip_declaration(Xml *xml)
   return hint;
 }
 
-XmlHint xml_read_root_node(Xml *xml, WRange** name_range)
+
+XmlHint myst_xml_read_inner_text(Xml *xml, WRange** text, WRange** ele_name)
 {
   XmlHint hint;
 
   hint = xml->context;
 
-  if (hint == kXmlHintEndDeclaration) {
+  if (xml->context != kXmlHintStartInnerText) {
     hint = xml_parse(xml);
-
-    if (hint == kXmlHintStartElementOpen) {
-      (*name_range)->begin = xml->cursor;
-      (*name_range)->end = (*name_range)->begin;
-
-      while (!(hint == kXmlHintEnded || hint == kXmlHintEndElementOpen)) {
-        hint = xml_parse(xml);
-      }
-    }
   }
 
-  (*name_range)->end = xml->cursor - 1;
+  if (hint == kXmlHintStartInnerText) {
+    int loop;
 
+    (*text)->begin = xml->cursor;
+    (*text)->end = (*text)->begin;
+
+    loop = 1;
+
+    while (loop) {
+      switch (hint) {
+      case kXmlHintEnded:
+        loop = 0;
+        break;
+      case kXmlHintEndInnerText:
+        (*text)->end = xml->cursor;
+        break;
+      case kXmlHintStartElementClose:
+        if (ele_name != 0) {
+          (*ele_name)->begin = xml->cursor;
+          (*ele_name)->end = (*ele_name)->begin;
+        }
+        break;
+      case kXmlHintEndElementClose:
+        if (ele_name != 0) {
+          (*ele_name)->end = xml->cursor - 1;
+        }
+        loop = 0;
+        break;
+      }
+
+      hint = xml_parse(xml);
+    }
+  }
+  
   return hint;
 }
 
@@ -291,7 +418,7 @@ Locale* loc_from_xml(WRange* src)
 {
   Xml* xml;
   XmlHint hint;
-
+  
   xml_create(&xml);
 
   wrange_copy(src, xml->range);
@@ -303,7 +430,7 @@ Locale* loc_from_xml(WRange* src)
     WRange* root_name;
     wrange_create(&root_name);
 
-    hint = xml_read_root_node(xml, &root_name);
+    hint = myst_xml_read_node(xml, &root_name, 0);
 
     if (hint != kXmlHintEnded) {
       WString *root;
@@ -311,6 +438,91 @@ Locale* loc_from_xml(WRange* src)
       root = wrange_make_string(root_name);
 
       printf("Got root %ls\n", wstring_get(root));
+
+      {
+        WRange *ele_name;
+        WRange *ele_attr_val;
+        WRange *ele_inner;
+        
+        WRange *group_range;
+        WRange *trans_range;
+
+        int loop; 
+
+        group_range = wrange_from_string(L"group");
+        trans_range = wrange_from_string(L"trans");
+        
+        wrange_create(&ele_name);
+        wrange_create(&ele_attr_val);
+
+        wrange_create(&ele_inner);
+        
+        loop = 1;
+
+        while (loop != 0)
+        {
+          hint = myst_xml_read_node(xml, &ele_name, &ele_attr_val);
+
+          if (hint == kXmlHintEnded)
+          {
+            loop = 0;
+          }
+          else if (wrange_equal(ele_name, group_range) == 1)
+          {
+            WString * val;
+            
+            val = wrange_make_string(ele_attr_val);
+            printf("Parsing group %ls\n", wstring_get(val));
+
+            wstring_destroy(&val);
+          }
+          else if (wrange_equal(ele_name, trans_range) == 1)
+          {
+            WString* name;
+            WString* val;
+
+            hint = myst_xml_read_inner_text(xml, &ele_inner, &ele_name);
+
+            name = wrange_make_string(ele_attr_val);
+            val = wrange_make_string(ele_inner);
+
+            printf("%ls == \"%ls\"\n", wstring_get(name), wstring_get(val));
+
+            wstring_destroy(&name);
+            wstring_destroy(&val);
+          }
+          else
+          {
+            loop = 0;
+          }
+
+          if (loop != 0)
+          {
+            while(hint == kXmlHintStartElementClose)
+            {
+              hint = myst_xml_close_node(xml, &ele_name);
+
+              if (wrange_equal(ele_name, group_range) == 1)
+              {
+                printf("Closing group\n\n");
+              }
+              else if (wrange_equal(ele_name, root_name) == 1)
+              {
+                printf("Hit closing root node\n");
+                loop = 0;
+              }
+            }
+          }
+        }
+
+        wrange_destroy(&ele_inner);
+
+        wrange_destroy(&group_range);
+        wrange_destroy(&trans_range);
+
+        wrange_destroy(&ele_attr_val);
+        wrange_destroy(&ele_name);
+      }
 
       wstring_destroy(&root);
     }

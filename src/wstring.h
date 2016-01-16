@@ -13,4 +13,6 @@ void wstring_destroy(WString** wstr);
 
 const short *wstring_get(WString* wstr);
 
+WString *wstring_from_cwstring(const short* cwstr);
+
 #endif // WSTRING_HEADER_H
