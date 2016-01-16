@@ -551,8 +551,8 @@ Locale* xml_read(FStream *fs)
 
     wrange_create(&range);
 
-    range->begin = (const char *)buffer + 2;
-    range->end = (const char *)range->begin + fs->length;
+    range->begin = (const short*)((const char *)(buffer + 2));
+    range->end = (const short*)((const char *)(range->begin + fs->length));
 
     loc = loc_from_xml(range);
 

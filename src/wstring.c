@@ -51,7 +51,7 @@ WString *wstring_from_cwstring(const short* cwstr)
   wstr->length = cwstring_length(cwstr);
 
   if (wstr->length > 0) {
-    wstr->val = (char *)mem_alloc((wstr->length + 1) * sizeof(short));
+    wstr->val = (short *)mem_alloc((wstr->length + 1) * sizeof(short));
 
     for (i = 0; i < wstr->length; ++i){
       wstr->val[i] = cwstr[i];
