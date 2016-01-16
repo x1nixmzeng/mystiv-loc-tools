@@ -6,8 +6,7 @@
 
 FStream* create_xml_stream(const char* fn);
 
-void myst_write_xml_locale(FStream* out_xml, Locale* loc);
-
-Locale* xml_read(FStream *fs);
+Locale* myst_read_xml(FStream *fs);
+void myst_write_xml(FStream* out_xml, Locale* loc);
 
 #endif // MYST_XML_HEADER_H

@@ -252,7 +252,7 @@ void bin_read_main(FStream *fs, Locale* loc)
   }
 }
 
-Locale* bin_read(FStream *fs)
+Locale* myst_read_bin(FStream *fs)
 {
   Locale* loc;
   int bin_type;

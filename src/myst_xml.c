@@ -101,7 +101,7 @@ void write_translation(FStream* xml, Translation* t)
   wstring_destroy(&conv);
 }
 
-void myst_write_xml_locale(FStream* out_xml, Locale* loc)
+void myst_write_xml(FStream* out_xml, Locale* loc)
 {
   int i, j;
   WString* conv;
@@ -460,7 +460,7 @@ Locale* loc_from_xml(WRange* src)
   return loc;
 }
 
-Locale* xml_read(FStream *fs)
+Locale* myst_read_xml(FStream *fs)
 {
   Locale* loc;
   void* buffer;
