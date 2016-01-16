@@ -22,7 +22,7 @@ int main(int argc, char** argv)
   if (argc > 1) {
     switch (argv[1][0])
     {
-    case 'p':
+    case 't':
     {
               if (argc == 4) {
                 show_usage = 0;
@@ -42,7 +42,7 @@ int main(int argc, char** argv)
 
               break;
     }
-    case 'e':
+    case 'f':
     {
               if (argc == 4) {
                 show_usage = 0;
@@ -67,7 +67,8 @@ int main(int argc, char** argv)
 
   if (show_usage != 0) {
     printf("Usage:\n");
-    printf(" bin t_<file>.bin <result>.xml\n");
+    printf(" myst_loc f <file>.bin <result>.xml\n");
+    printf(" myst_loc t <file>.xml <result>.bin\n");
     printf("\n");
   }
 
