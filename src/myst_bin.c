@@ -25,6 +25,22 @@ void translation_destroy(Translation** t)
   *t = 0;
 }
 
+void group_insert_translation(Group* g, Translation *t)
+{
+  if (g->trans == 0) {
+    g->trans = (Translation**)mem_alloc(sizeof(Translation*));
+
+    g->trans[0] = t;
+    g->trans_count = 1;
+  }
+  else {
+    g->trans = (Translation**)mem_realloc(g->trans, sizeof(Translation*)* (g->trans_count + 1));
+
+    g->trans[g->trans_count] = t;
+    g->trans_count++;
+  }
+}
+
 void group_create(Group** g)
 {
   *g = (Group* )mem_alloc(sizeof(Group));
@@ -52,6 +68,37 @@ void group_destroy(Group** g)
 
   mem_free(*g);
   *g = 0;
+}
+
+void locale_insert_translation(Locale* l, Translation *t)
+{
+  if (l->trans == 0) {
+    l->trans = (Translation**)mem_alloc(sizeof(Translation*));
+
+    l->trans[0] = t;
+    l->trans_count = 1;
+  }
+  else {
+    l->trans = (Translation**)mem_realloc(l->trans, sizeof(Translation*)* (l->trans_count + 1));
+
+    l->trans[l->trans_count] = t;
+    l->trans_count++;
+  }
+}
+
+void locale_insert_group(Locale *l, Group *g)
+{
+  if (l->groups == 0) {
+    l->groups = (Group**)mem_alloc(sizeof(Group*));
+
+    l->groups[0] = g;
+    l->group_count = 1;
+  } else {
+    l->groups = (Group**)mem_realloc(l->groups, sizeof(Group*)* (l->group_count + 1));
+
+    l->groups[l->group_count] = g;
+    l->group_count++;
+  }
 }
 
 void locale_create(Locale** l)

@@ -30,8 +30,13 @@ typedef struct LocaleNode
 void translation_create(Translation** t);
 void translation_destroy(Translation** t);
 
+void group_insert_translation(Group* g, Translation *t);
+
 void group_create(Group** g);
 void group_destroy(Group** g);
+
+void locale_insert_translation(Locale* l, Translation *t);
+void locale_insert_group(Locale* l, Group *g);
 
 void locale_create(Locale** l);
 void locale_destroy(Locale** l);

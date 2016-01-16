@@ -316,9 +316,11 @@ XmlHint myst_xml_read_inner_text(Xml *xml, WRange** text, WRange** ele_name)
 
 Locale* loc_from_xml(WRange* src)
 {
+  Locale* loc;
   Xml* xml;
   XmlHint hint;
 
+  locale_create(&loc);
   xml_create(&xml);
 
   wrange_copy(src, xml->range);
@@ -337,7 +339,8 @@ Locale* loc_from_xml(WRange* src)
 
       root = wrange_make_string(root_name);
 
-      printf("Got root %ls\n", wstring_get(root));
+      // Set final name
+      loc->name = convert_wstring(root);
 
       {
         WRange *ele_name;
@@ -346,6 +349,8 @@ Locale* loc_from_xml(WRange* src)
 
         WRange *group_range;
         WRange *trans_range;
+
+        Group *last_group;
 
         int loop;
 
@@ -356,6 +361,8 @@ Locale* loc_from_xml(WRange* src)
         wrange_create(&ele_attr_val);
 
         wrange_create(&ele_inner);
+
+        last_group = 0;
 
         loop = 1;
 
@@ -374,10 +381,16 @@ Locale* loc_from_xml(WRange* src)
             val = wrange_make_string(ele_attr_val);
             printf("Parsing group %ls\n", wstring_get(val));
 
+            group_create(&last_group);
+            
+            last_group->name = convert_wstring(val);
+            locale_insert_group(loc, last_group);
+
             wstring_destroy(&val);
           }
           else if (wrange_equal(ele_name, trans_range) == 1)
           {
+            Translation* tr;
             WString* name;
             WString* val;
 
@@ -385,6 +398,17 @@ Locale* loc_from_xml(WRange* src)
 
             name = wrange_make_string(ele_attr_val);
             val = wrange_make_string(ele_inner);
+
+            translation_create(&tr);
+
+            tr->key = convert_wstring(name);
+            tr->trans = wrange_make_string(ele_inner);
+
+            if (last_group == 0) {
+              locale_insert_translation(loc, tr);
+            } else {
+              group_insert_translation(last_group, tr);
+            }
 
             printf("%ls == \"%ls\"\n", wstring_get(name), wstring_get(val));
 
@@ -404,6 +428,7 @@ Locale* loc_from_xml(WRange* src)
 
               if (wrange_equal(ele_name, group_range) == 1)
               {
+                last_group = 0;
                 printf("Closing group\n\n");
               }
               else if (wrange_equal(ele_name, root_name) == 1)
@@ -432,7 +457,7 @@ Locale* loc_from_xml(WRange* src)
 
   xml_destroy(&xml);
 
-  return 0;
+  return loc;
 }
 
 Locale* xml_read(FStream *fs)
