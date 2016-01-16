@@ -379,8 +379,6 @@ Locale* loc_from_xml(WRange* src)
             WString * val;
 
             val = wrange_make_string(ele_attr_val);
-            printf("Parsing group %ls\n", wstring_get(val));
-
             group_create(&last_group);
             
             last_group->name = convert_wstring(val);
@@ -392,12 +390,10 @@ Locale* loc_from_xml(WRange* src)
           {
             Translation* tr;
             WString* name;
-            WString* val;
 
             hint = myst_xml_read_inner_text(xml, &ele_inner, &ele_name);
 
             name = wrange_make_string(ele_attr_val);
-            val = wrange_make_string(ele_inner);
 
             translation_create(&tr);
 
@@ -410,10 +406,7 @@ Locale* loc_from_xml(WRange* src)
               group_insert_translation(last_group, tr);
             }
 
-            printf("%ls == \"%ls\"\n", wstring_get(name), wstring_get(val));
-
             wstring_destroy(&name);
-            wstring_destroy(&val);
           }
           else
           {
@@ -426,14 +419,15 @@ Locale* loc_from_xml(WRange* src)
             {
               hint = myst_xml_close_node(xml, &ele_name);
 
+              // close group
               if (wrange_equal(ele_name, group_range) == 1)
               {
                 last_group = 0;
-                printf("Closing group\n\n");
               }
+
+              // end parsing (hit a node name the same as the root one)
               else if (wrange_equal(ele_name, root_name) == 1)
               {
-                printf("Hit closing root node\n");
                 loop = 0;
               }
             }
