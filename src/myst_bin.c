@@ -144,6 +144,25 @@ void locale_destroy(Locale** l)
   *l = 0;
 }
 
+int locale_valid(Locale* l)
+{
+  int result;
+
+  result = 0;
+
+  if (l != 0) {
+    if (l->name != 0) {
+      result |= 1;
+    }
+
+    if (l->group_count > 0 || l->trans_count > 0) {
+      result |= 1;
+    }
+  }
+
+  return result;
+}
+
 int bin_check_header(FStream *fs)
 {
   char magic[9];

@@ -41,6 +41,8 @@ void locale_insert_group(Locale* l, Group *g);
 void locale_create(Locale** l);
 void locale_destroy(Locale** l);
 
+int locale_valid(Locale* l);
+
 Locale* myst_read_bin(FStream *fs);
 void myst_write_bin(FStream* out_bin, Locale* loc);
 
