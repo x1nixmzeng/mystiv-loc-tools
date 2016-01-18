@@ -5,6 +5,12 @@
 
 const char bin_magic[] = "ubi/b0-l";
 
+enum BinType
+{
+  BIN_TYPE_SUBTITLE = 36,
+  BIN_TYPE_TEXT = 37
+};
+
 void translation_create(Translation** t)
 {
   *t = (Translation* )mem_alloc(sizeof(Translation));
@@ -90,6 +96,56 @@ void subtitle_destroy(Subtitle** s)
   *s = 0;
 }
 
+void from_hex(int* result, short chr)
+{
+  switch (chr) {
+    case '1': *result |= 1; break;
+    case '2': *result |= 2; break;
+    case '3': *result |= 3; break;
+    case '4': *result |= 4; break;
+    case '5': *result |= 5; break;
+    case '6': *result |= 6; break;
+    case '7': *result |= 7; break;
+    case '8': *result |= 8; break;
+    case '9': *result |= 9; break;
+    case 'a': *result |= 10; break;
+    case 'b': *result |= 11; break;
+    case 'c': *result |= 12; break;
+    case 'd': *result |= 13; break;
+    case 'e': *result |= 14; break;
+    case 'f': *result |= 15; break;
+  }
+}
+
+__int64 convert_id(WRange* r)
+{
+  __int64 result;
+  int len, i;
+
+  result = 0;
+
+  len = wrange_length(r);
+
+  if (len == 16) {
+    int tmp;
+    for (i = 0; i < len; i+=2) {
+      tmp = 0;
+      from_hex(&tmp, r->begin[i]);
+      tmp <<= 4;
+      from_hex(&tmp, r->begin[i + 1]);
+      
+      result |= (__int64)(tmp) << (i*4);
+    }
+  }
+
+  return result;
+}
+
+void subtitle_set_id(Subtitle* s, WRange* r)
+{
+  s->id = convert_id(r);
+}
+
 void locale_insert_subtitle(Locale* l, Subtitle *s)
 {
   if (l->subt == 0) {
@@ -147,6 +203,8 @@ void locale_create(Locale** l)
   (*l)->trans_count = 0;
   (*l)->groups = 0;
   (*l)->group_count = 0;
+  (*l)->subt = 0;
+  (*l)->subt_count = 0;
 }
 
 void locale_destroy(Locale** l)
@@ -218,6 +276,15 @@ int locale_valid(Locale* l)
   }
 
   return result;
+}
+
+int bin_guess_type(Locale* l)
+{
+  if (l->source != 0) {
+    return BIN_TYPE_SUBTITLE;
+  }
+
+  return BIN_TYPE_TEXT;
 }
 
 int bin_check_header(FStream *fs)
@@ -382,10 +449,10 @@ Locale* myst_read_bin(FStream *fs)
 
   switch (bin_type)
   {
-  case 36: // (subtitle_ ? .bin)
+  case BIN_TYPE_SUBTITLE:
     bin_read_subtitle_text(fs, loc);
     break;
-  case 37: // (t_?.bin)
+  case BIN_TYPE_TEXT:
     bin_read_text(fs, loc);
     break;
   default:
@@ -399,16 +466,17 @@ Locale* myst_read_bin(FStream *fs)
   return loc;
 }
 
-void bin_write_header(FStream* fs)
+void bin_write_header(FStream* fs, Locale* l)
 {
-  int type, unknown;
+  int bin_type, unknown_1;
   
-  type = 37; // text
-  unknown = 1;
+  bin_type = bin_guess_type(l);
+
+  unknown_1 = 1; // prob. the count!
 
   stream_write(fs, bin_magic, sizeof(bin_magic)-1);
-  stream_write(fs, &type, sizeof(int));
-  stream_write(fs, &unknown, sizeof(int));
+  stream_write(fs, &bin_type, sizeof(int));
+  stream_write(fs, &unknown_1, sizeof(int));
 }
 
 void bin_write_name(FStream* fs, Locale *l)
@@ -455,14 +523,21 @@ void bin_write_group(FStream *fs, Group *g)
   }
 }
 
-void bin_write_main(FStream *fs, Locale *l)
+void bin_write_subtitle(FStream* fs, Subtitle* s)
 {
-  int i, unknown;
+  stream_write(fs, &s->id, sizeof(s->id));
+  stream_write(fs, &s->line->length, sizeof(s->line->length));
+  stream_write_wstring(fs, s->line);
+}
 
-  unknown = 1;
+void bin_write_text(FStream *fs, Locale *l)
+{
+  int i, unknown_1;
 
-  stream_write(fs, &unknown, sizeof(int));
+  unknown_1 = 1;
 
+  stream_write(fs, &unknown_1, sizeof(int));
+  
   stream_write(fs, &l->trans_count, sizeof(int));
   stream_write(fs, &l->group_count, sizeof(int));
   
@@ -483,10 +558,41 @@ void bin_write_main(FStream *fs, Locale *l)
   }
 }
 
+void bin_write_subtitle_text(FStream *fs, Locale *l)
+{
+  int i, unknown_1;
+
+  unknown_1 = 1;
+
+  stream_write(fs, &unknown_1, sizeof(unknown_1));
+
+  stream_write(fs, &l->source->length, sizeof(l->source->length));
+  stream_write_string(fs, l->source);
+
+  stream_write(fs, &l->subt_count, sizeof(l->subt_count));
+
+  if (l->subt_count > 0)
+  {
+    for (i = 0; i < l->subt_count; ++i)
+    {
+      bin_write_subtitle(fs, l->subt[i]);
+    }
+  }
+}
+
 void myst_write_bin(FStream* out_bin, Locale* loc)
 {
-  bin_write_header(out_bin);
+  bin_write_header(out_bin, loc);
   bin_write_name(out_bin, loc);
 
-  bin_write_main(out_bin, loc);
+  switch (bin_guess_type(loc))
+  {
+  case BIN_TYPE_TEXT:
+    bin_write_text(out_bin, loc);
+    break;
+  case BIN_TYPE_SUBTITLE:
+    bin_write_subtitle_text(out_bin, loc);
+    break;
+  }
 }
+

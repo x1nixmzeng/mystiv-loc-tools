@@ -4,6 +4,7 @@
 #include "stream.h"
 #include "string.h"
 #include "wstring.h"
+#include "wtextrange.h"
 
 typedef struct TranslationNode
 {
@@ -46,6 +47,8 @@ void group_destroy(Group** g);
 
 void subtitle_create(Subtitle** s);
 void subtitle_destroy(Subtitle** s);
+
+void subtitle_set_id(Subtitle* s, WRange* r);
 
 void locale_insert_subtitle(Locale* l, Subtitle *s);
 void locale_insert_translation(Locale* l, Translation *t);

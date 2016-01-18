@@ -381,6 +381,8 @@ Locale* loc_from_xml(WRange* src)
 
         WRange *group_range;
         WRange *trans_range;
+        WRange *subtitle_range;
+        WRange *line_range;
 
         Group *last_group;
 
@@ -388,6 +390,8 @@ Locale* loc_from_xml(WRange* src)
 
         group_range = wrange_from_string(L"group");
         trans_range = wrange_from_string(L"trans");
+        subtitle_range = wrange_from_string(L"subtitle");
+        line_range = wrange_from_string(L"line");
 
         wrange_create(&ele_name);
         wrange_create(&ele_attr_val);
@@ -440,6 +444,28 @@ Locale* loc_from_xml(WRange* src)
 
             wstring_destroy(&name);
           }
+          else if (wrange_equal(ele_name, subtitle_range) == 1)
+          {
+            WString* name;
+
+            name = wrange_make_string(ele_attr_val);
+            loc->source = convert_wstring(name);
+
+            wstring_destroy(&name);
+          }
+          else if (wrange_equal(ele_name, line_range) == 1)
+          {
+            Subtitle* sub;
+
+            subtitle_create(&sub);
+
+            hint = myst_xml_read_inner_text(xml, &ele_inner, 0);
+
+            subtitle_set_id(sub, ele_attr_val);
+            sub->line = wrange_make_string(ele_inner);
+
+            locale_insert_subtitle(loc, sub);
+          }
           else
           {
             loop = 0;
@@ -468,6 +494,8 @@ Locale* loc_from_xml(WRange* src)
 
         wrange_destroy(&ele_inner);
 
+        wrange_destroy(&line_range);
+        wrange_destroy(&subtitle_range);
         wrange_destroy(&group_range);
         wrange_destroy(&trans_range);
 
