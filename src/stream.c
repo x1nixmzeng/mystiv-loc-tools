@@ -5,7 +5,9 @@
 void stream_create(FStream** fs)
 {
   *fs = (FStream*)mem_alloc(sizeof(FStream));
+
   (*fs)->handle = 0;
+  (*fs)->length = 0;
 }
 
 void stream_destroy(FStream** fs)
@@ -49,6 +51,25 @@ int stream_open(FStream* fs, const char *szFileName)
 int stream_write(FStream *fs, const void *buffer, unsigned length)
 {
   fwrite(buffer, length, 1, fs->handle);
+  return 0;
+}
+
+const char alphanum[] = "0123456789abcdef";
+
+int stream_write_hex(FStream *fs, const void* buffer, unsigned int length)
+{
+  unsigned int i, val;
+  const char *buf;
+
+  buf = (const char*)buffer;
+  
+  for (i = 0; i < length; ++i, ++buf)
+  {
+    val = (int)alphanum[((*buf) >> 4) & 0xF] | (int)(alphanum[(*buf) & 0xF]) << 16;
+
+    stream_write(fs, &val, 4);
+  }
+
   return 0;
 }
 

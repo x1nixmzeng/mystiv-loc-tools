@@ -28,6 +28,8 @@ int stream_read(FStream *fs, void *buffer, unsigned int length);
 
 int stream_write(FStream *fs, const void *buffer, unsigned int length);
 
+int stream_write_hex(FStream *fs, const void* buffer, unsigned int length);
+
 int stream_write_string(FStream *fs, String *str);
 
 int stream_write_wstring(FStream *fs, WString *wstr);

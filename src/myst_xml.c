@@ -18,10 +18,21 @@ const unsigned short trans_end[] = L"</trans>\r\n";
 const unsigned short node_open[] = L"<";
 const unsigned short node_closing[] = L"</";
 const unsigned short node_close[] = L">\r\n";
+
 const unsigned short group_open[] = L"<group>\r\n";
 const unsigned short group_open_pre[] = L"<group name=\"";
 const unsigned short group_open_post[] = L"\">\r\n";
 const unsigned short group_close[] = L"</group>\r\n";
+
+const unsigned short subtitle_open_pre[] = L"<subtitle name=\"";
+const unsigned short subtitle_open_post[] = L"\">\r\n";
+const unsigned short subtitle_close[] = L"</subtitle>\r\n";
+
+const unsigned short line_open_pre[] = L"<line id=\"";
+const unsigned short line_open_post[] = L"\">";
+const unsigned short line_close[] = L"</line>\r\n";
+
+#define WRITE(stream, xml) stream_write(stream, xml, sizeof(xml) -2);
 
 String* convert_wstring(WString* src)
 {
@@ -82,7 +93,7 @@ FStream* create_xml_stream(const char* fn)
   // write utf-16 byte order marker
   BOM = 0xfeff;
   stream_write(res, &BOM, 2);
-  stream_write(res, xml_hdr, sizeof(xml_hdr)-2);
+  WRITE(res, xml_hdr);
 
   return res;
 }
@@ -91,60 +102,81 @@ void write_translation(FStream* xml, Translation* t)
 {
   WString* conv;
 
-  stream_write(xml, trans_pre, sizeof(trans_pre)-2);
+  WRITE(xml, trans_pre);
   conv = convert_string(t->key);
   stream_write_wstring(xml, conv);
-  stream_write(xml, trans_post, sizeof(trans_post)-2);
+  WRITE(xml, trans_post);
   stream_write_wstring(xml, t->trans);
-  stream_write(xml, trans_end, sizeof(trans_end)-2);
+  WRITE(xml, trans_end);
 
   wstring_destroy(&conv);
+}
+
+void write_subtitle(FStream* xml, Subtitle* s)
+{
+  WRITE(xml, line_open_pre);
+  stream_write_hex(xml, &s->id, sizeof(s->id));
+  WRITE(xml, line_open_post);
+  stream_write_wstring(xml, s->line);
+  WRITE(xml, line_close);
 }
 
 void myst_write_xml(FStream* out_xml, Locale* loc)
 {
   int i, j;
   WString* conv;
-
-#define WRITE(xml) stream_write(out_xml, xml, sizeof(xml) -2);
   
   if (out_xml->handle != 0) {
 
-    WRITE(node_open);
+    WRITE(out_xml, node_open);
     conv = convert_string(loc->name);
     stream_write_wstring(out_xml, conv);
     wstring_destroy(&conv);
-    WRITE(node_close);
+    WRITE(out_xml, node_close);
+    
+    if (loc->subt_count > 0) {
+      WRITE(out_xml, subtitle_open_pre);
+      conv = convert_string(loc->source);
+      stream_write_wstring(out_xml, conv);
+      wstring_destroy(&conv);
+      WRITE(out_xml, subtitle_open_post);
+      
+      for (i = 0; i < loc->subt_count; ++i) {
+        write_subtitle(out_xml, loc->subt[i]);
+      }
+
+      WRITE(out_xml, subtitle_close);
+    }
 
     if (loc->trans_count > 0) {
-      WRITE(group_open);
+      WRITE(out_xml, group_open);
 
       for (i = 0; i < loc->trans_count; ++i) {
         write_translation(out_xml, loc->trans[i]);
       }
 
-      WRITE(group_close);
+      WRITE(out_xml, group_close);
     }
 
     for (i = 0; i < loc->group_count; ++i) {
-      WRITE(group_open_pre);
+      WRITE(out_xml, group_open_pre);
       conv = convert_string(loc->groups[i]->name);
       stream_write_wstring(out_xml, conv);
       wstring_destroy(&conv);
-      WRITE(group_open_post);
+      WRITE(out_xml, group_open_post);
 
       for (j = 0; j < loc->groups[i]->trans_count; ++j) {
         write_translation(out_xml, loc->groups[i]->trans[j]);
       }
 
-      WRITE(group_close);
+      WRITE(out_xml, group_close);
     }
 
-    WRITE(node_closing);
+    WRITE(out_xml, node_closing);
     conv = convert_string(loc->name);
     stream_write_wstring(out_xml, conv);
     wstring_destroy(&conv);
-    WRITE(node_close);
+    WRITE(out_xml, node_close);
   }
 }
 

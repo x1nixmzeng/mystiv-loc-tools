@@ -72,6 +72,40 @@ void group_destroy(Group** g)
   *g = 0;
 }
 
+void subtitle_create(Subtitle** s)
+{
+  *s = (Subtitle*)mem_alloc(sizeof(Subtitle));
+
+  (*s)->id = 0;
+  (*s)->line = 0;
+}
+
+void subtitle_destroy(Subtitle** s)
+{
+  if ((*s)->line != 0) {
+    wstring_destroy(&(*s)->line);
+  }
+
+  mem_free(*s);
+  *s = 0;
+}
+
+void locale_insert_subtitle(Locale* l, Subtitle *s)
+{
+  if (l->subt == 0) {
+    l->subt = (Subtitle**)mem_alloc(sizeof(Subtitle*));
+
+    l->subt[0] = s;
+    l->subt_count = 1;
+  }
+  else {
+    l->subt = (Subtitle**)mem_realloc(l->subt, sizeof(Subtitle*)* (l->subt_count + 1));
+
+    l->subt[l->subt_count] = s;
+    l->subt_count++;
+  }
+}
+
 void locale_insert_translation(Locale* l, Translation *t)
 {
   if (l->trans == 0) {
@@ -108,6 +142,7 @@ void locale_create(Locale** l)
   *l = (Locale*)mem_alloc(sizeof(Locale));
 
   (*l)->name = 0;
+  (*l)->source = 0;
   (*l)->trans = 0;
   (*l)->trans_count = 0;
   (*l)->groups = 0;
@@ -118,6 +153,10 @@ void locale_destroy(Locale** l)
 {
   if( (*l)->name != 0 ) {
     string_destroy(&(*l)->name);
+  }
+
+  if ((*l)->source != 0) {
+    string_destroy(&(*l)->source);
   }
 
   if( (*l)->trans != 0 ) {
@@ -140,6 +179,16 @@ void locale_destroy(Locale** l)
     mem_free((*l)->groups);
   }
 
+  if ((*l)->subt != 0) {
+    int i;
+
+    for (i = 0; i < (*l)->subt_count; ++i) {
+      subtitle_destroy(&(*l)->subt[i]);
+    }
+
+    mem_free((*l)->subt);
+  }
+
   mem_free(*l);
   *l = 0;
 }
@@ -155,7 +204,15 @@ int locale_valid(Locale* l)
       result |= 1;
     }
 
+    if (l->source != 0) {
+      result |= 1;
+    }
+
     if (l->group_count > 0 || l->trans_count > 0) {
+      result |= 1;
+    }
+
+    if (l->subt_count > 0) {
       result |= 1;
     }
   }
@@ -175,7 +232,7 @@ int bin_check_header(FStream *fs)
 
   for( i = 0; i < len; ++i ) {
     if (magic[i] != bin_magic[i]) {
-      printf("Bad magic for locale file\n");
+      printf("Unknown BIN file; magic string does not match\n");
       return 1;
     }
   }
@@ -242,11 +299,23 @@ Group* bin_read_group(FStream *fs)
   return group;
 }
 
-void bin_read_main(FStream *fs, Locale* loc)
+Subtitle* bin_read_subtitle(FStream *fs)
 {
-  int i, unknown;
+  Subtitle* subtitle;
 
-  unknown = stream_read_int(fs); // 1
+  subtitle_create(&subtitle);
+
+  stream_read(fs, &subtitle->id, sizeof(subtitle->id));
+  subtitle->line = stream_read_cwstring(fs);
+
+  return subtitle;
+}
+
+void bin_read_text(FStream *fs, Locale* loc)
+{
+  int i, unknown_1;
+
+  unknown_1 = stream_read_int(fs); // 1
 
   loc->trans_count = stream_read_int(fs);
   loc->group_count = stream_read_int(fs);
@@ -272,6 +341,27 @@ void bin_read_main(FStream *fs, Locale* loc)
   }
 }
 
+void bin_read_subtitle_text(FStream *fs, Locale* loc)
+{
+  int unknown_1, i;
+
+  unknown_1 = stream_read_int(fs); // 1
+
+  loc->source = stream_read_cstring(fs);
+
+  loc->subt_count = stream_read_int(fs);
+
+  if (loc->subt_count > 0)
+  {
+    loc->subt = (Subtitle** )mem_alloc(sizeof(Subtitle* )* loc->subt_count);
+
+    for (i = 0; i < loc->subt_count; ++i)
+    {
+      loc->subt[i] = bin_read_subtitle(fs);
+    }
+  }
+}
+
 Locale* myst_read_bin(FStream *fs)
 {
   Locale* loc;
@@ -285,22 +375,26 @@ Locale* myst_read_bin(FStream *fs)
   }
  
   bin_type = stream_read_int(fs);
-
-  // Types
-  // Subtitle == 36 (subtitle_?.bin)
-  // Text = 37 (t_?.bin)
-
-  if( bin_type != 37) {
-    printf("This BIN file is not a text resource\n");
-    return loc;
-  }
-
-  unknown_0 = stream_read_int(fs);
+  unknown_0 = stream_read_int(fs); // 0
 
   loc->name = stream_read_cstring(fs);
   scramble_str(loc->name);
 
-  bin_read_main(fs, loc);
+  switch (bin_type)
+  {
+  case 36: // (subtitle_ ? .bin)
+    bin_read_subtitle_text(fs, loc);
+    break;
+  case 37: // (t_?.bin)
+    bin_read_text(fs, loc);
+    break;
+  default:
+    printf("Unknown BIN file; type is not supported\n");
+  }
+  
+  if (fs->length != stream_pos(fs)) {
+    printf("ERROR: Did not finished reading file\n");
+  }
 
   return loc;
 }
