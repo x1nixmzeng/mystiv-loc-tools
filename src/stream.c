@@ -54,6 +54,25 @@ int stream_write(FStream *fs, const void *buffer, unsigned length)
   return 0;
 }
 
+int stream_write_intstring(FStream *fs, int value)
+{
+  int i, len;
+  short buf[11]; // 2 147 483 647
+  
+  len = 0;
+
+  do
+  {
+    buf[10-len] = (char)(value % 10) + '0';
+    ++len;
+    value /= 10;
+  } while (value != 0);
+  
+  stream_write(fs, &buf[11-len], len * sizeof(short));
+
+  return 0;
+}
+
 const char alphanum[] = "0123456789abcdef";
 
 int stream_write_hex(FStream *fs, const void* buffer, unsigned int length)

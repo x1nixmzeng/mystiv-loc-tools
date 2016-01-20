@@ -21,7 +21,8 @@ typedef struct TranslationGroupNode
 
 typedef struct SubtitleNode
 {
-  __int64 id;
+  int time_on;
+  int time_off;
   WString* line;
 } Subtitle;
 
@@ -48,7 +49,8 @@ void group_destroy(Group** g);
 void subtitle_create(Subtitle** s);
 void subtitle_destroy(Subtitle** s);
 
-void subtitle_set_id(Subtitle* s, WRange* r);
+void subtitle_set_id(Subtitle* s, WRange* r_on, WRange* r_off);
+void subtitle_set_id_legacy(Subtitle* s, WRange* r);
 
 void locale_insert_subtitle(Locale* l, Subtitle *s);
 void locale_insert_translation(Locale* l, Translation *t);

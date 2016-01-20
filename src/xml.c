@@ -278,6 +278,11 @@ XmlHint xml_parse(Xml* xml)
           xml->context = kXmlHintEnded;
         }
         break;
+      case ' ':
+        // todo: check this isn't just whitespace
+        ++xml->cursor;
+        xml->context = kXmlHintStartAttributeName;
+        break;
       default:
         xml->context = kXmlHintEnded;
       }

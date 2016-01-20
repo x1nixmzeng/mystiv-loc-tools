@@ -28,7 +28,8 @@ const unsigned short subtitle_open_pre[] = L"<subtitle name=\"";
 const unsigned short subtitle_open_post[] = L"\">\r\n";
 const unsigned short subtitle_close[] = L"</subtitle>\r\n";
 
-const unsigned short line_open_pre[] = L"<line id=\"";
+const unsigned short line_open_on[] = L"<line on=\"";
+const unsigned short line_open_off[] = L"\" off=\"";
 const unsigned short line_open_post[] = L"\">";
 const unsigned short line_close[] = L"</line>\r\n";
 
@@ -114,8 +115,10 @@ void write_translation(FStream* xml, Translation* t)
 
 void write_subtitle(FStream* xml, Subtitle* s)
 {
-  WRITE(xml, line_open_pre);
-  stream_write_hex(xml, &s->id, sizeof(s->id));
+  WRITE(xml, line_open_on);
+  stream_write_intstring(xml, s->time_on);
+  WRITE(xml, line_open_off);
+  stream_write_intstring(xml, s->time_off);
   WRITE(xml, line_open_post);
   stream_write_wstring(xml, s->line);
   WRITE(xml, line_close);
@@ -199,7 +202,7 @@ XmlHint xml_skip_declaration(Xml *xml)
   return xml->context;
 }
 
-XmlHint myst_xml_read_node(Xml *xml, WRange** ele_name, WRange** attrib_val)
+XmlHint myst_xml_read_node(Xml *xml, WRange** ele_name, int max_attribs, WRange** attrib_val)
 {
   XmlHint hint;
 
@@ -211,6 +214,7 @@ XmlHint myst_xml_read_node(Xml *xml, WRange** ele_name, WRange** attrib_val)
 
   if (hint == kXmlHintStartElementOpen) {
     int loop;
+    int attribs;
 
     if (ele_name != 0) {
       (*ele_name)->begin = xml->cursor;
@@ -218,6 +222,7 @@ XmlHint myst_xml_read_node(Xml *xml, WRange** ele_name, WRange** attrib_val)
     }
 
     loop = 1;
+    attribs = 0;
 
     while (loop) {
       switch (hint) {
@@ -234,19 +239,22 @@ XmlHint myst_xml_read_node(Xml *xml, WRange** ele_name, WRange** attrib_val)
         loop = 0;
         break;
       case kXmlHintStartAttributeName:
-        if (ele_name != 0){
-          (*ele_name)->end = xml->cursor - 1;
+        if (ele_name != 0 ){
+          if ((*ele_name)->end == (*ele_name)->begin) {
+            (*ele_name)->end = xml->cursor - 1;
+          }
         }
         break;
       case kXmlHintStartAttributeValue:
-        if (attrib_val != 0){
-          (*attrib_val)->begin = xml->cursor;
-          (*attrib_val)->end = (*attrib_val)->begin;
+        if (attrib_val != 0 && attribs < max_attribs){
+          attrib_val[attribs]->begin = xml->cursor;
+          attrib_val[attribs]->end = attrib_val[attribs]->begin;
         }
         break;
       case kXmlHintEndAttributeValue:
-        if (attrib_val != 0) {
-          (*attrib_val)->end = xml->cursor;
+        if (attrib_val != 0 && attribs < max_attribs) {
+          attrib_val[attribs]->end = xml->cursor;
+          ++attribs;
         }
         break;
       }
@@ -364,7 +372,7 @@ Locale* loc_from_xml(WRange* src)
     WRange* root_name;
     wrange_create(&root_name);
 
-    hint = myst_xml_read_node(xml, &root_name, 0);
+    hint = myst_xml_read_node(xml, &root_name, 0, 0);
 
     if (hint != kXmlHintEnded) {
       WString *root;
@@ -376,7 +384,7 @@ Locale* loc_from_xml(WRange* src)
 
       {
         WRange *ele_name;
-        WRange *ele_attr_val;
+        WRange *ele_attr_val[2];
         WRange *ele_inner;
 
         WRange *group_range;
@@ -394,7 +402,8 @@ Locale* loc_from_xml(WRange* src)
         line_range = wrange_from_string(L"line");
 
         wrange_create(&ele_name);
-        wrange_create(&ele_attr_val);
+        wrange_create(&ele_attr_val[0]);
+        wrange_create(&ele_attr_val[1]);
 
         wrange_create(&ele_inner);
 
@@ -404,7 +413,7 @@ Locale* loc_from_xml(WRange* src)
 
         while (loop != 0)
         {
-          hint = myst_xml_read_node(xml, &ele_name, &ele_attr_val);
+          hint = myst_xml_read_node(xml, &ele_name, 2, ele_attr_val);
 
           if (hint == kXmlHintEnded)
           {
@@ -414,7 +423,7 @@ Locale* loc_from_xml(WRange* src)
           {
             WString * val;
 
-            val = wrange_make_string(ele_attr_val);
+            val = wrange_make_string(ele_attr_val[0]);
             group_create(&last_group);
             
             last_group->name = convert_wstring(val);
@@ -429,7 +438,7 @@ Locale* loc_from_xml(WRange* src)
 
             hint = myst_xml_read_inner_text(xml, &ele_inner, &ele_name);
 
-            name = wrange_make_string(ele_attr_val);
+            name = wrange_make_string(ele_attr_val[0]);
 
             translation_create(&tr);
 
@@ -448,7 +457,7 @@ Locale* loc_from_xml(WRange* src)
           {
             WString* name;
 
-            name = wrange_make_string(ele_attr_val);
+            name = wrange_make_string(ele_attr_val[0]);
             loc->source = convert_wstring(name);
 
             wstring_destroy(&name);
@@ -456,12 +465,21 @@ Locale* loc_from_xml(WRange* src)
           else if (wrange_equal(ele_name, line_range) == 1)
           {
             Subtitle* sub;
-
+            int len;
             subtitle_create(&sub);
 
             hint = myst_xml_read_inner_text(xml, &ele_inner, 0);
 
-            subtitle_set_id(sub, ele_attr_val);
+            // for compatability with old <line id="x"> format
+            // new format is <line on="0" off="1">
+            len = wrange_length(ele_attr_val[0]);
+
+            if (len == 16) {
+              subtitle_set_id_legacy(sub, ele_attr_val[0]);
+            } else {
+              subtitle_set_id(sub, ele_attr_val[0], ele_attr_val[1]);
+            }
+
             sub->line = wrange_make_string(ele_inner);
 
             locale_insert_subtitle(loc, sub);
@@ -499,7 +517,8 @@ Locale* loc_from_xml(WRange* src)
         wrange_destroy(&group_range);
         wrange_destroy(&trans_range);
 
-        wrange_destroy(&ele_attr_val);
+        wrange_destroy(&ele_attr_val[1]);
+        wrange_destroy(&ele_attr_val[0]);
         wrange_destroy(&ele_name);
       }
 

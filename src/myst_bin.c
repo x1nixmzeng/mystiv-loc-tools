@@ -82,7 +82,8 @@ void subtitle_create(Subtitle** s)
 {
   *s = (Subtitle*)mem_alloc(sizeof(Subtitle));
 
-  (*s)->id = 0;
+  (*s)->time_on = 0;
+  (*s)->time_off = 0;
   (*s)->line = 0;
 }
 
@@ -117,7 +118,7 @@ void from_hex(int* result, short chr)
   }
 }
 
-__int64 convert_id(WRange* r)
+__int64 convert_id_legacy(WRange* r)
 {
   __int64 result;
   int len, i;
@@ -141,9 +142,41 @@ __int64 convert_id(WRange* r)
   return result;
 }
 
-void subtitle_set_id(Subtitle* s, WRange* r)
+int convert_id(WRange* r)
 {
-  s->id = convert_id(r);
+  int result;
+  int len, i, tmp;
+
+  result = 0;
+
+  len = wrange_length(r);
+
+  for (i = 0; i < len; ++i)
+  {
+    tmp = 0;
+    from_hex(&tmp, r->begin[i]);
+
+    result *= 10;
+    result += tmp;
+  }
+
+  return result;
+}
+
+void subtitle_set_id(Subtitle* s, WRange* r_on, WRange* r_off)
+{
+  s->time_on = convert_id(r_on);
+  s->time_off = convert_id(r_off);
+}
+
+void subtitle_set_id_legacy(Subtitle* s, WRange* r)
+{
+  __int64 tmp;
+  
+  tmp = convert_id_legacy(r);
+
+  s->time_on = (int)(tmp & 0xFFFFFFFF);
+  s->time_off = (int)(tmp >> 32);
 }
 
 void locale_insert_subtitle(Locale* l, Subtitle *s)
@@ -372,7 +405,8 @@ Subtitle* bin_read_subtitle(FStream *fs)
 
   subtitle_create(&subtitle);
 
-  stream_read(fs, &subtitle->id, sizeof(subtitle->id));
+  subtitle->time_on = stream_read_int(fs);
+  subtitle->time_off = stream_read_int(fs);
   subtitle->line = stream_read_cwstring(fs);
 
   return subtitle;
@@ -525,7 +559,8 @@ void bin_write_group(FStream *fs, Group *g)
 
 void bin_write_subtitle(FStream* fs, Subtitle* s)
 {
-  stream_write(fs, &s->id, sizeof(s->id));
+  stream_write(fs, &s->time_on, sizeof(s->time_on));
+  stream_write(fs, &s->time_off, sizeof(s->time_off));
   stream_write(fs, &s->line->length, sizeof(s->line->length));
   stream_write_wstring(fs, s->line);
 }
