@@ -1,5 +1,7 @@
 #include "platform.h"
 #include "textrange.h"
+#include "memory.h"
+#include "string.h"
 
 #include <windows.h>
 
@@ -17,7 +19,7 @@ void platform_make_full_path(String* path)
 {
   Range *span_path;
   Range *span_subpath;
-  
+
   range_create(&span_path);
   range_create(&span_subpath);
 
@@ -41,7 +43,58 @@ void platform_make_full_path(String* path)
   }
 
   platform_make_path(path);
-  
+
   range_destroy(&span_subpath);
   range_destroy(&span_path);
+}
+
+int special_dir(const char *path)
+{
+  int result;
+
+  result = 0;
+
+  // current dir
+  if (path[0] == '.' && path[1] == 0) {
+    result = 1;
+  }
+
+  // parent link
+  if (path[0] == '.' && path[1] == '.' && path[2] == 0) {
+    result = 1;
+  }
+
+  return result;
+}
+
+void platform_run_dirscan(String* path, PlatformFileCallback f_cb, PlatformDirCallback d_cb, void* userdata)
+{
+  String *search_path;
+  HANDLE handle;
+  WIN32_FIND_DATA data;
+
+  search_path = string_concat_cstring(2, string_get(path), "\\*");
+
+  handle = FindFirstFileA(string_get(search_path), &data);
+
+  if (handle != INVALID_HANDLE_VALUE) {
+    do {
+      if (data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+        if (d_cb != 0) {
+          if (special_dir(data.cFileName) == 0) {
+            d_cb(data.cFileName, userdata);
+          }
+        }
+      }
+      else {
+        if (f_cb != 0) {
+          f_cb(data.cFileName, data.nFileSizeLow, userdata);
+        }
+      }
+    } while (FindNextFileA(handle, &data));
+
+    FindClose(handle);
+  }
+
+  string_destroy(&search_path);
 }
