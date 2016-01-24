@@ -172,3 +172,26 @@ WString* stream_read_cwstring(FStream *fs)
   return wstr;
 }
 
+int stream_insert_stream(FStream* fs, FStream* src, void* buffer, int buf_size)
+{
+  int i;
+
+  i = 0;
+  while (i < src->length)
+  {
+    int block;
+
+    block = src->length - i;
+
+    if (block > buf_size) {
+      block = buf_size;
+    }
+
+    stream_read(src, buffer, block);
+    stream_write(fs, buffer, block);
+
+    i += block;
+  }
+
+  return 0;
+}

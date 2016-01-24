@@ -44,4 +44,6 @@ String* stream_read_cstring(FStream *fs);
 
 WString* stream_read_cwstring(FStream *fs);
 
+int stream_insert_stream(FStream* fs, FStream* src, void* buffer, int buf_size);
+
 #endif // STREAM_HEADER_H

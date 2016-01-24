@@ -361,7 +361,7 @@ int m4b_get_fssize(MystDir* root)
   return len;
 }
 
-void m4b_write(FStream* out_bin, MystDir* root)
+void m4b_write_header(FStream* out_bin, MystDir* root)
 {
   int tmp;
   int unknown_0, unknown_1;
@@ -396,4 +396,50 @@ void m4b_write(FStream* out_bin, MystDir* root)
   {
     m4b_write_file(out_bin, root->files[tmp], &file_offset);
   }
+}
+
+void m4b_write_data(FStream* out_bin, MystDir* root, String* base_path)
+{
+  int i;
+  String* path; 
+
+  path = string_concat_cstring(3, string_get(base_path), "\\", string_get(root->name));
+
+  for (i = 0; i < root->dir_count; ++i)
+  {
+    m4b_write_data(out_bin, root->dirs[i], path);
+  }
+
+  if (root->file_count > 0)
+  {
+    const unsigned buf_size = 2048;
+    void* buffer;
+
+    buffer = mem_alloc(buf_size);
+
+    for (i = 0; i < root->file_count; ++i)
+    {
+      String* fn;
+      FStream* file;
+
+      stream_create(&file);
+
+      fn = string_concat_cstring(3, string_get(path), "\\", string_get(root->files[i]->name));
+
+      stream_open(file, string_get(fn));
+
+      if (file->handle != 0) {
+        stream_insert_stream(out_bin, file, buffer, buf_size);
+      } else {
+        printf("Failed to read \"%s\"\n", string_get(fn));
+      }
+
+      string_destroy(&fn);
+      stream_destroy(&file);
+    }
+
+    mem_free(buffer);
+  }
+
+  string_destroy(&path);
 }

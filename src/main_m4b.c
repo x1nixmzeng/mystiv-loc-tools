@@ -205,12 +205,12 @@ void extract_files(const char* fn, const char* dst_folder)
 
 void pack_files(const char* folder, const char* fn)
 {
-  String* search_path;
+  String* base_path;
   MystDir* root;
 
-  search_path = string_from_cstring(folder);
+  base_path = string_from_cstring(folder);
 
-  root = m4b_create(search_path);
+  root = m4b_create(base_path);
 
   if (root != 0) {
     FStream* out;
@@ -221,7 +221,8 @@ void pack_files(const char* folder, const char* fn)
     if (out->handle != 0)
     {
       printf("Writing binary...\n");
-      m4b_write(out, root);
+      m4b_write_header(out, root);
+      m4b_write_data(out, root, base_path);
     }
 
     stream_destroy(&out);
@@ -229,5 +230,5 @@ void pack_files(const char* folder, const char* fn)
     m4b_destroy_fsdir(&root);
   }
 
-  string_destroy(&search_path);
+  string_destroy(&base_path);
 }
