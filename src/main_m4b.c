@@ -1,7 +1,8 @@
 // Myst IV *.m4b packer
 // Written by WRS (XeNTaX.com)
-// Note: Does not work with the demo
+// Note: Does not work with the demo!
 
+#include "string.h"
 #include "stream.h"
 #include "myst_bin.h"
 #include "myst_m4b.h"
@@ -50,7 +51,7 @@ int main(int argc, char** argv)
     {
               if (argc == 4) {
                 show_usage = 0;
-                pack_files(argv[3], argv[2]);
+                pack_files(argv[2], argv[3]);
               }
 
               break;
@@ -120,32 +121,33 @@ void list_files(const char* fn)
 
 void cb_extract_file(String* path, MystFile* file, void* userdata)
 {
+  const int buf_size = 2048;
   FStream *m4b, *fs;
   int i;
-  unsigned char* buf;
+  void* buf;
+  String *fpath;
 
   m4b = (FStream*)userdata;
 
-  buf = (unsigned char*)mem_alloc(1024);
-  
-  sprintf(buf, "%s%s", string_get(path), string_get(file->name));
+  fpath = string_concat_cstring(2, string_get(path), string_get(file->name));
 
   platform_make_full_path(path);
 
   stream_create(&fs);
-  if (stream_make(fs, buf) != 0)
+  if (stream_make(fs, string_get(fpath)) != 0)
   {
-    printf("Failed to extract file %s\n", buf);
+    printf("Failed to extract file %s\n", string_get(fpath));
 
-    mem_free(buf);
+    string_destroy(&fpath);
     stream_destroy(&fs);
     return;
   }
   
-  printf("Extracting %s\n", buf);
+  printf("Extracting %s\n", string_get(fpath));
 
   stream_seek(m4b, file->offset);
 
+  buf = mem_alloc(buf_size);
   i = 0;
   while (i < file->size)
   {
@@ -153,8 +155,8 @@ void cb_extract_file(String* path, MystFile* file, void* userdata)
 
     block = file->size - i;
 
-    if (block > 1024) {
-      block = 1024;
+    if (block > buf_size) {
+      block = buf_size;
     }
 
     stream_read(m4b, buf, block);
@@ -164,7 +166,7 @@ void cb_extract_file(String* path, MystFile* file, void* userdata)
   }
 
   mem_free(buf);
-
+  string_destroy(&fpath);
   stream_destroy(&fs);
 }
 
@@ -203,5 +205,29 @@ void extract_files(const char* fn, const char* dst_folder)
 
 void pack_files(const char* folder, const char* fn)
 {
+  String* search_path;
+  MystDir* root;
 
+  search_path = string_from_cstring(folder);
+
+  root = m4b_create(search_path);
+
+  if (root != 0) {
+    FStream* out;
+
+    stream_create(&out);
+    stream_make(out, fn);
+
+    if (out->handle != 0)
+    {
+      printf("Writing binary...\n");
+      m4b_write(out, root);
+    }
+
+    stream_destroy(&out);
+    
+    m4b_destroy_fsdir(&root);
+  }
+
+  string_destroy(&search_path);
 }

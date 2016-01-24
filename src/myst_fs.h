@@ -25,6 +25,9 @@ typedef struct MystDirNode
 void m4b_create_fsfile(MystFile** m);
 void m4b_create_fsdir(MystDir** m);
 
+void m4v_insert_fsfile(MystDir* root, MystFile *f);
+void m4v_insert_fsdir(MystDir* root, MystDir *d);
+
 void m4b_destroy_fsfile(MystFile** m);
 void m4b_destroy_fsdir(MystDir** m);
 

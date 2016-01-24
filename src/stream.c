@@ -56,7 +56,7 @@ int stream_write(FStream *fs, const void *buffer, unsigned length)
 
 int stream_write_intstring(FStream *fs, int value)
 {
-  int i, len;
+  int len;
   short buf[11]; // 2 147 483 647
   
   len = 0;

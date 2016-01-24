@@ -22,6 +22,39 @@ void m4b_create_fsdir(MystDir** m)
   (*m)->dir_count = 0;
 }
 
+void m4v_insert_fsfile(MystDir* root, MystFile *f)
+{
+  if (root->file_count == 0)
+  {
+    root->files = (MystFile**)mem_alloc(sizeof(MystFile*));
+
+    root->files[0] = f;
+    root->file_count++;
+  } else {
+    root->files = (MystFile**)mem_realloc(root->files, sizeof(MystFile*)* (root->file_count + 1));
+
+    root->files[root->file_count] = f;
+    root->file_count++;
+  }
+}
+
+void m4v_insert_fsdir(MystDir* root, MystDir *d)
+{
+  if (root->dir_count == 0)
+  {
+    root->dirs = (MystDir**)mem_alloc(sizeof(MystDir*));
+
+    root->dirs[0] = d;
+    root->dir_count++;
+  }
+  else {
+    root->dirs = (MystDir**)mem_realloc(root->dirs, sizeof(MystDir*)* (root->dir_count + 1));
+
+    root->dirs[root->dir_count] = d;
+    root->dir_count++;
+  }
+}
+
 void m4b_destroy_fsfile(MystFile** m)
 {
   if( (*m)->name != 0 ) {
