@@ -66,9 +66,9 @@ int main(int argc, char** argv)
 
   if (show_usage != 0) {
     printf("Usage:\n");
-    printf(" List files    m4b l file.m4b\n");
-    printf(" Extract files m4b e file.m4b folder\n");
-    printf(" Pack folder   m4b p folder file.m4b\n");
+    printf(" List files    myst_m4b l file.m4b\n");
+    printf(" Extract files myst_m4b e file.m4b folder\n");
+    printf(" Pack folder   myst_m4b p folder file.m4b\n");
     printf("\n");
   }
   
