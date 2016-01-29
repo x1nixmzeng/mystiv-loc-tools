@@ -30,8 +30,15 @@ This is a serialized binary file used by Myst IV. Use `myst_loc.exe`:
 | Text     |      ✓   |
 
 
+
+## Known Usage
+
+* [Turkish Myst IV Translation][2]
+
+
 ## Licence
 
 This code has been placed in the public domain
 
 [1]:http://forum.xentax.com/viewforum.php?f=10
+[2]:http://www.tanersaydam.com/myst-iv-revelation-0-turkce-yamasi-kurulumda/
