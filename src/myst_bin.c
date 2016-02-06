@@ -7,9 +7,46 @@ const char bin_magic[] = "ubi/b0-l";
 
 enum BinType
 {
+  BIN_TYPE_COMMAND_BLOCK = 6,
+  BIN_TYPE_STATE = 7,
+  BIN_TYPE_GRAPHIC = 12,
+  BIN_TYPE_INTERPOLATOR = 14,
+  BIN_TYPE_LIGHT_SET = 20,
   BIN_TYPE_SUBTITLE = 36,
-  BIN_TYPE_TEXT = 37
+  BIN_TYPE_TEXT = 37,
+  BIN_TYPE_TEXTURE = 39,
+  BIN_TYPE_VIDEO = 41,
+  BIN_TYPE_MENU = 46,
 };
+
+const char* bintype_to_string(int bin_type)
+{
+  switch (bin_type)
+  {
+  case BIN_TYPE_COMMAND_BLOCK:
+    return "command block";
+  case BIN_TYPE_STATE:
+    return "state";
+  case BIN_TYPE_GRAPHIC:
+    return "graphic";
+  case BIN_TYPE_INTERPOLATOR:
+    return "interpolator";
+  case BIN_TYPE_LIGHT_SET:
+    return "light set";
+  case BIN_TYPE_SUBTITLE:
+    return "subtitle";
+  case BIN_TYPE_TEXT:
+    return "text";
+  case BIN_TYPE_TEXTURE:
+    return "texture";
+  case BIN_TYPE_VIDEO:
+    return "video";
+  case BIN_TYPE_MENU:
+    return "menu";
+  default:
+    return "<unknown type>";
+  }
+}
 
 void translation_create(Translation** t)
 {
@@ -490,7 +527,7 @@ Locale* myst_read_bin(FStream *fs)
     bin_read_text(fs, loc);
     break;
   default:
-    printf("Unknown BIN file; type is not supported\n");
+    printf("ERROR: Unknown BIN file; the \"%s\" type is not supported\n", bintype_to_string(bin_type));
   }
   
   if (fs->length != stream_pos(fs)) {
