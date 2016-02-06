@@ -321,6 +321,29 @@ void locale_destroy(Locale** l)
   *l = 0;
 }
 
+void texture_create(Texture** t)
+{
+  *t = (Texture*)mem_alloc(sizeof(Texture));
+
+  (*t)->name = 0;
+  (*t)->buffer = 0;
+  (*t)->size = 0;
+}
+
+void texture_destroy(Texture** t)
+{
+  if ((*t)->name != 0) {
+    string_destroy(&(*t)->name);
+  }
+
+  if ((*t)->buffer != 0) {
+    mem_free((*t)->buffer);
+  }
+
+  mem_free(*t);
+  *t = 0;
+}
+
 int locale_valid(Locale* l)
 {
   int result;
@@ -500,7 +523,7 @@ void bin_read_subtitle_text(FStream *fs, Locale* loc)
   }
 }
 
-Locale* myst_read_bin(FStream *fs)
+Locale* myst_read_bin_subtitletext(FStream *fs)
 {
   Locale* loc;
   int bin_type;
@@ -652,7 +675,7 @@ void bin_write_subtitle_text(FStream *fs, Locale *l)
   }
 }
 
-void myst_write_bin(FStream* out_bin, Locale* loc)
+void myst_write_bin_subtitletext(FStream* out_bin, Locale* loc)
 {
   bin_write_header(out_bin, loc);
   bin_write_name(out_bin, loc);
@@ -668,3 +691,61 @@ void myst_write_bin(FStream* out_bin, Locale* loc)
   }
 }
 
+int bin_read_texture(FStream *fs, Texture *tex)
+{
+  int unknown_0, unknown_1, size;
+
+  unknown_0 = stream_read_int(fs);
+  unknown_1 = stream_read_int(fs);
+
+  size = stream_read_int(fs);
+
+  if (size > 0)
+  {
+    tex->buffer = mem_alloc(size);
+    stream_read(fs, tex->buffer, size);
+
+    tex->size = size;
+  }
+
+  return 0;
+}
+
+Texture* myst_read_bin_texture(FStream *fs)
+{
+  Texture* img;
+  int bin_type;
+  int unknown_2;
+
+  texture_create(&img);
+
+  if (bin_check_header(fs) != 0) {
+    return img;
+  }
+
+  bin_type = stream_read_int(fs);
+  unknown_2 = stream_read_int(fs); // 2
+
+  img->name = stream_read_cstring(fs);
+  scramble_str(img->name);
+
+  switch (bin_type)
+  {
+  case BIN_TYPE_TEXTURE:
+    bin_read_texture(fs, img);
+    break;
+  default:
+    printf("ERROR: Unknown BIN file; the \"%s\" type is not supported\n", bintype_to_string(bin_type));
+  }
+
+  if (fs->length != stream_pos(fs)) {
+    printf("ERROR: Did not finished reading file\n");
+  }
+
+  return img;
+}
+
+void myst_write_bin_texture(FStream* out_bin, Texture* img)
+{
+  stream_write(out_bin, img->buffer, img->size);
+}

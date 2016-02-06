@@ -81,7 +81,7 @@ void convert_bin(FStream* fs, const char* out_fn)
 {
   Locale *myst_loc;
 
-  myst_loc = myst_read_bin(fs);
+  myst_loc = myst_read_bin_subtitletext(fs);
   
   if (locale_valid(myst_loc) == 1){
     FStream* out;
@@ -111,7 +111,7 @@ void convert_xml(FStream* fs, const char* out_fn)
     stream_make(out, out_fn);
 
     if (out->handle != 0) {
-      myst_write_bin(out, myst_loc);
+      myst_write_bin_subtitletext(out, myst_loc);
     }
 
     stream_destroy(&out);

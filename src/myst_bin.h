@@ -38,6 +38,13 @@ typedef struct LocaleNode
   int subt_count;
 } Locale;
 
+typedef struct TextureNode
+{
+  String* name;
+  void* buffer;
+  int size;
+} Texture;
+
 void translation_create(Translation** t);
 void translation_destroy(Translation** t);
 
@@ -59,9 +66,15 @@ void locale_insert_group(Locale* l, Group *g);
 void locale_create(Locale** l);
 void locale_destroy(Locale** l);
 
+void texture_create(Texture** t);
+void texture_destroy(Texture** t);
+
 int locale_valid(Locale* l);
 
-Locale* myst_read_bin(FStream *fs);
-void myst_write_bin(FStream* out_bin, Locale* loc);
+Locale* myst_read_bin_subtitletext(FStream *fs);
+void myst_write_bin_subtitletext(FStream* out_bin, Locale* loc);
+
+Texture* myst_read_bin_texture(FStream *fs);
+void myst_write_bin_texture(FStream* out_bin, Texture* img);
 
 #endif // MYST_BIN_HEADER_H
