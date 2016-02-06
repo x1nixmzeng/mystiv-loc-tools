@@ -37,42 +37,41 @@ MystFile* m4b_create_file(String* str, int size)
 MystDir* m4b_read_dir(FStream *fs)
 {
   MystDir* node;
-  int num;
+  int dir_num, file_num;
 
   m4b_create_fsdir(&node);
 
   node->name = stream_read_cstring(fs);
 
-  num = (int)(unsigned char)stream_read_char(fs);
+  dir_num = (int)(unsigned char)stream_read_char(fs);
 
-  if( num > 0 )
+  if (dir_num > 0)
   {
     int i;
 
-    node->dir_count = num;
-    node->dirs = (MystDir** )mem_alloc(sizeof(MystDir*) * num);
+    node->dir_count = dir_num;
+    node->dirs = (MystDir** )mem_alloc(sizeof(MystDir*) * dir_num);
 
-    for( i = 0; i < num; ++i )
+    for (i = 0; i < dir_num; ++i)
     {
       node->dirs[i] = m4b_read_dir(fs);
     }
-
-    i = stream_read_int(fs);
   }
-  else // does this follow on from above?
+  
+  file_num = stream_read_int(fs);
+
+  if (file_num > 0)
   {
     int i;
 
-    num = stream_read_int(fs);
+    node->file_count = file_num;
+    node->files = (MystFile**)mem_alloc(sizeof(MystFile*)* file_num);
 
-    node->file_count = num;
-    node->files = (MystFile** )mem_alloc(sizeof(MystFile*) * num);
-
-    for( i = 0; i < num; ++i )
+    for (i = 0; i < file_num; ++i)
     {
       node->files[i] = m4b_read_file(fs);
     }
-  } 
+  }
 
   return node;
 }
